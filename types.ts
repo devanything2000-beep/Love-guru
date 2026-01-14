@@ -1,4 +1,5 @@
 
+
 export type UserRole = 'user' | 'admin';
 export type PlanType = 'Free' | 'Pro' | 'Premium';
 export type OnlineStatus = 'online' | 'offline' | 'busy';
@@ -116,8 +117,11 @@ export interface ChatSession {
 export interface CoachScenario {
   id: string;
   title: string;
+  hinglishTitle?: string;
   description: string;
+  hinglishDescription?: string;
   difficulty: 'Easy' | 'Medium' | 'Hard';
+  tags?: string[];
 }
 
 export interface Fetcher {

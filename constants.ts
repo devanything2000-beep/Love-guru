@@ -1,4 +1,6 @@
 
+
+
 import { User, Post, ChatSession, CoachScenario, Fetcher, Log, Plan, Notification, ReferralStat, ReferralTier, SaaSMetrics, FunnelStage } from './types';
 
 export const SYSTEM_PROMPTS = {
@@ -43,15 +45,15 @@ export const CURRENT_USER: User = {
   isOnline: true,
   lastActive: 'Now',
   referralCode: 'LOVE-RHL-24',
-  referralCount: 12,
+  referralCount: 1, // Set to 1 to show progress towards the 3-user goal
   
   // --- New Logic Simulation ---
   subscriptionStatus: 'trial', 
-  referralsThisMonth: 1, // User has done 1 out of 2 referrals
-  premiumUntil: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 Days left in trial
+  referralsThisMonth: 1, 
+  premiumUntil: new Date(Date.now() + (6 * 24 * 60 * 60 * 1000) - (1000 * 60 * 30)).toISOString(), // 5 Days 23 Hours 30 Mins (Simulating 6 days left)
   
   referralEarnings: 6000,
-  referralLevel: 'Silver',
+  referralLevel: 'Bronze',
 };
 
 export const DISCOVER_PROFILES: User[] = [
@@ -180,21 +182,48 @@ export const CHAT_SESSIONS: ChatSession[] = [
 export const PRACTICE_SCENARIOS: CoachScenario[] = [
   {
     id: 's-1',
-    title: 'First Date Conversation',
+    title: 'First Approach at College',
+    hinglishTitle: 'कॉलेज गेट पर फर्स्ट अप्रोच',
     description: 'Practice how to start a conversation without being awkward.',
-    difficulty: 'Easy'
+    hinglishDescription: 'तुम college gate पर खड़े हो, वो भी वहीं bus का wait कर रही है।',
+    difficulty: 'Easy',
+    tags: ['first talk', 'public', 'medium confidence']
   },
   {
     id: 's-2',
-    title: 'Approaching a Crush',
-    description: 'Learn how to approach someone you like at a party.',
-    difficulty: 'Medium'
+    title: 'Flirting in a Cafe',
+    hinglishTitle: 'कैफ़े में फ्रेंड से फ्लर्ट',
+    description: 'Learn how to be playful and show interest subtly.',
+    hinglishDescription: 'तुम दोनों cafe में बैठे हो, अच्छी conversation चल रही है।',
+    difficulty: 'Medium',
+    tags: ['attraction', 'semi_private', 'high confidence']
   },
   {
     id: 's-3',
-    title: 'Conflict Resolution',
-    description: 'Your partner is angry. Try to calm the situation.',
-    difficulty: 'Hard'
+    title: 'Confessing Feelings',
+    hinglishTitle: 'प्राइवेट में कन्फेशन',
+    description: 'The moment of truth. Telling them how you feel.',
+    hinglishDescription: 'तुम दोनों अकेले हो, perfect moment लग रहा है दिल की बात कहने का।',
+    difficulty: 'Hard',
+    tags: ['confession', 'private', 'medium confidence']
+  },
+  {
+    id: 's-4',
+    title: 'Building Friendship in Park',
+    hinglishTitle: 'पार्क में दोस्ती बिल्ड करना',
+    description: 'Casual talk to know each other better.',
+    hinglishDescription: 'Park में टहलते हुए, casual conversation शुरू करना चाहते हो।',
+    difficulty: 'Easy',
+    tags: ['friendship', 'semi_private', 'high confidence']
+  },
+  {
+    id: 's-5',
+    title: 'First Talk in Class',
+    hinglishTitle: 'क्लास में पहली बार बात',
+    description: 'Breaking the ice with a classmate.',
+    hinglishDescription: 'Lecture hall में, break के time पास की seat वाली girl से बात करनी है।',
+    difficulty: 'Medium',
+    tags: ['first talk', 'public', 'low confidence']
   }
 ];
 
@@ -246,9 +275,9 @@ export const REFERRAL_STATS: ReferralStat[] = [
 ];
 
 export const REFERRAL_TIERS: ReferralTier[] = [
-   { name: 'Bronze', minReferrals: 0, reward: '1 Week Premium', color: 'from-orange-700 to-orange-500' },
-   { name: 'Silver', minReferrals: 10, reward: '1 Month Premium + 5 Boosts', color: 'from-slate-400 to-slate-200' },
-   { name: 'Gold', minReferrals: 30, reward: 'Lifetime Premium + VIP', color: 'from-yellow-500 to-yellow-200' },
+   { name: 'Bronze', minReferrals: 3, reward: '1 Week Premium', color: 'from-orange-600 to-orange-400' },
+   { name: 'Silver', minReferrals: 10, reward: '1 Month Premium', color: 'from-purple-600 to-indigo-500' },
+   { name: 'Gold', minReferrals: 25, reward: 'Lifetime Premium + VIP', color: 'from-yellow-500 to-yellow-200' },
 ];
 
 export const SAAS_METRICS: SaaSMetrics = {

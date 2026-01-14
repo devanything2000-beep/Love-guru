@@ -1,6 +1,6 @@
 
-import React, { useState } from 'react';
-import { Heart, MessageCircle, Globe, Brain, Dumbbell, User as UserIcon, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Calendar, Flame, Menu, Bell, Settings as SettingsIcon, Gift } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Heart, MessageCircle, Globe, Brain, Dumbbell, User as UserIcon, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Calendar, Flame, Menu, Bell, Settings as SettingsIcon, Gift, Zap, LayoutDashboard, ShoppingBag, X, Clock } from 'lucide-react';
 import { Discover } from './pages/Discover';
 import { SocialHub } from './pages/SocialHub';
 import { LoveCoach } from './pages/LoveCoach';
@@ -14,262 +14,304 @@ import { Notifications } from './pages/Notifications';
 import { Settings } from './pages/Settings';
 import { Referral } from './pages/Referral';
 import { ProfileDetail } from './pages/ProfileDetail';
-import { CURRENT_USER, CHAT_SESSIONS, NOTIFICATIONS } from './constants';
+import { Marketplace } from './pages/Marketplace';
+import { RunFetcher } from './pages/RunFetcher';
+import { Onboarding } from './pages/Onboarding';
+import { CURRENT_USER as DEFAULT_USER, CHAT_SESSIONS, NOTIFICATIONS, CURRENT_USER } from './constants';
 import { StatusBadge } from './components/UIComponents';
-import { ChatSession, User } from './types';
+import { ChatSession, User, Fetcher } from './types';
 
-// --- Sidebar Item (Desktop) ---
+// --- Sidebar Item (Desktop & Mobile Drawer) ---
 const NavItem = ({ icon: Icon, label, active, onClick, collapsed, badge }: any) => (
   <button
     onClick={onClick}
     title={collapsed ? label : ''}
     className={`
-      w-full flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group relative
+      w-full flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-200 group
       ${active 
-        ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg' 
-        : 'text-slate-400 hover:bg-white/5 hover:text-white'
-      } 
-      ${collapsed ? 'justify-center px-2' : 'px-4'}
+        ? 'bg-gradient-to-r from-rose-600/90 to-pink-600/90 text-white shadow-lg shadow-rose-900/20' 
+        : 'text-slate-400 hover:bg-white/5 hover:text-white'}
     `}
   >
-    <Icon size={22} className={`flex-shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
-    {!collapsed && <span className="font-medium whitespace-nowrap overflow-hidden text-sm">{label}</span>}
-    {badge > 0 && (
-      <span className={`absolute ${collapsed ? 'top-2 right-2' : 'right-4'} bg-rose-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full`}>
-         {badge}
+    <div className="relative">
+      <Icon size={22} className={`transition-transform duration-300 ${active ? 'scale-110' : 'group-hover:scale-110'}`} strokeWidth={active ? 2.5 : 2} />
+      {badge && (
+        <span className="absolute -top-2 -right-2 bg-rose-500 text-white text-[10px] font-bold px-1.5 py-0.5 rounded-full shadow-sm border border-[#0F172A]">
+          {badge}
+        </span>
+      )}
+    </div>
+    {!collapsed && (
+      <span className={`font-medium tracking-wide whitespace-nowrap transition-opacity duration-200 ${active ? 'opacity-100' : 'opacity-90'}`}>
+        {label}
       </span>
     )}
+    {!collapsed && active && <div className="ml-auto w-1.5 h-1.5 rounded-full bg-white shadow-glow"></div>}
   </button>
 );
 
-// --- Bottom Tab Item (Mobile) ---
-const MobileTab = ({ icon: Icon, label, active, onClick }: any) => (
+// --- Bottom Tab (Mobile) ---
+const MobileTab = ({ icon: Icon, label, active, onClick, badge }: any) => (
   <button 
     onClick={onClick}
-    className={`flex flex-col items-center justify-center w-full py-2 transition-colors ${active ? 'text-rose-500' : 'text-slate-500'}`}
+    className={`flex flex-col items-center justify-center w-full py-1 relative ${active ? 'text-rose-500' : 'text-slate-400'}`}
   >
-    <div className={`p-1.5 rounded-xl mb-1 transition-all ${active ? 'bg-rose-500/10' : 'bg-transparent'}`}>
+    <div className={`p-1.5 rounded-full transition-all ${active ? 'bg-rose-500/10 -translate-y-1' : ''}`}>
       <Icon size={24} strokeWidth={active ? 2.5 : 2} />
+      {badge && (
+        <span className="absolute top-1 right-[25%] bg-rose-500 text-white text-[9px] font-bold px-1 rounded-full border border-[#0F172A]">
+          {badge}
+        </span>
+      )}
     </div>
-    <span className="text-[10px] font-medium">{label}</span>
+    <span className="text-[10px] font-medium mt-0.5">{label}</span>
   </button>
 );
 
-const App = () => {
-  const [currentPage, setCurrentPage] = useState('discover');
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [selectedProfile, setSelectedProfile] = useState<User | null>(null);
+export default function App() {
+  const [isOnboarded, setIsOnboarded] = useState(false); // Default to false to show Onboarding first for demo
+  const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
   
-  // --- Global State ---
-  const [myChats, setMyChats] = useState<ChatSession[]>(CHAT_SESSIONS);
+  const [activePage, setActivePage] = useState('discover');
+  const [collapsed, setCollapsed] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [likedProfiles, setLikedProfiles] = useState<Set<string>>(new Set());
+  const [viewingProfile, setViewingProfile] = useState<User | null>(null);
+  const [selectedFetcher, setSelectedFetcher] = useState<Fetcher | null>(null);
 
-  const isUserLiked = (userId: string) => myChats.some(chat => chat.userId === userId);
+  // Stats for Badges
+  const unreadMessages = CHAT_SESSIONS.reduce((acc, curr) => acc + curr.unreadCount, 0);
+  const unreadNotifications = NOTIFICATIONS.filter(n => !n.isRead).length;
 
-  const handleToggleLike = (profile: User) => {
-    setMyChats(prev => {
-      const exists = prev.find(c => c.userId === profile.id);
-      if (exists) {
-        return prev.filter(c => c.userId !== profile.id);
+  // Global Countdown Logic
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
+  
+  useEffect(() => {
+     if (!CURRENT_USER.premiumUntil) return;
+     
+     const calculate = () => {
+        const diff = +new Date(CURRENT_USER.premiumUntil!) - +new Date();
+        if (diff > 0) {
+           setTimeLeft({
+              days: Math.floor(diff / (1000 * 60 * 60 * 24)),
+              hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
+              minutes: Math.floor((diff / 1000 / 60) % 60),
+           });
+        } else {
+           setTimeLeft({ days: 0, hours: 0, minutes: 0 });
+        }
+     };
+     
+     calculate();
+     const timer = setInterval(calculate, 60000); // update every minute
+     return () => clearInterval(timer);
+  }, []);
+
+  const handleToggleLike = (user: User) => {
+    setLikedProfiles(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(user.id)) {
+        newSet.delete(user.id);
       } else {
-        const newSession: ChatSession = {
-          id: `new-${profile.id}-${Date.now()}`,
-          userId: profile.id,
-          userName: profile.name,
-          userAvatar: profile.avatar,
-          lastMessage: "You matched! Say hello 👋",
-          unreadCount: 1,
-          status: profile.isOnline ? 'online' : 'offline'
-        };
-        return [newSession, ...prev];
+        newSet.add(user.id);
       }
+      return newSet;
     });
   };
 
-  const handleViewProfile = (user: User) => {
-     setSelectedProfile(user);
-     setCurrentPage('profile-detail');
+  const handleOnboardingComplete = (data: any) => {
+     // Merge onboarding data into current user
+     setCurrentUser(prev => ({
+       ...prev,
+       name: data.name,
+       age: parseInt(data.age) || 25,
+       gender: data.gender,
+       city: data.city,
+       bio: data.bio,
+       interests: data.interests,
+       avatar: data.avatar || prev.avatar,
+       photos: data.photos
+     }));
+     setIsOnboarded(true);
   };
 
-  const navigateTo = (page: string) => {
-     setCurrentPage(page);
-     setSelectedProfile(null);
-     setMobileMenuOpen(false);
-  };
+  const isLiked = (userId: string) => likedProfiles.has(userId);
 
-  // Define Page Content
   const renderContent = () => {
-    if (currentPage === 'profile-detail' && selectedProfile) {
-       return <ProfileDetail user={selectedProfile} onBack={() => navigateTo('discover')} />;
+    if (viewingProfile) {
+      return <ProfileDetail user={viewingProfile} onBack={() => setViewingProfile(null)} />;
     }
 
-    switch (currentPage) {
-      case 'discover': 
-        return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} onViewProfile={handleViewProfile} />;
-      case 'messages': 
-        return <Messages sessions={myChats} />;
+    if (activePage === 'run-fetcher' && selectedFetcher) {
+      return <RunFetcher fetcher={selectedFetcher} onBack={() => setActivePage('marketplace')} />;
+    }
+
+    switch (activePage) {
+      case 'discover': return <Discover onToggleLike={handleToggleLike} isLiked={isLiked} onViewProfile={setViewingProfile} />;
       case 'social': return <SocialHub />;
-      case 'coach': return <LoveCoach />;
-      case 'practice': return <PracticeMode />;
-      case 'dateplanner': return <DatePlanner />;
-      case 'roster': return <ProfileRoster />;
+      case 'coach': return <LoveCoach initialSection="coach" />;
+      case 'practice': return <LoveCoach initialSection="practice" />;
+      case 'messages': return <Messages sessions={CHAT_SESSIONS} />;
+      case 'marketplace': return <Marketplace onSelectFetcher={(f) => { setSelectedFetcher(f); setActivePage('run-fetcher'); }} />;
       case 'admin': return <AdminPanel />;
       case 'billing': return <Billing />;
+      case 'date-planner': return <DatePlanner />;
+      case 'roster': return <ProfileRoster />;
       case 'notifications': return <Notifications />;
-      case 'settings': return <Settings />;
+      case 'settings': return <Settings onNavigate={setActivePage} />;
       case 'referral': return <Referral />;
-      case 'profile': return <Settings />; // Reuse settings for profile for now
-      default: return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} onViewProfile={handleViewProfile} />;
+      default: return <Discover onToggleLike={handleToggleLike} isLiked={isLiked} onViewProfile={setViewingProfile} />;
     }
   };
 
-  const unreadNotifications = NOTIFICATIONS.filter(n => !n.isRead).length;
+  // --- SHOW ONBOARDING IF NOT COMPLETE ---
+  if (!isOnboarded) {
+     return <Onboarding onComplete={handleOnboardingComplete} />;
+  }
 
+  // --- MAIN APP UI ---
   return (
-    <div className="flex h-screen bg-[#0F172A] text-white overflow-hidden">
+    <div className="flex h-screen text-slate-200 overflow-hidden selection:bg-rose-500/30">
       
-      {/* 1. DESKTOP SIDEBAR */}
-      <aside 
-        className={`
-          hidden md:flex flex-col 
-          ${isSidebarCollapsed ? 'w-20' : 'w-72'} 
-          bg-[#1E293B] border-r border-white/5 
-          transition-all duration-300 ease-in-out z-20
-        `}
-      >
-        {/* Brand Header */}
-        <div className={`h-20 flex items-center ${isSidebarCollapsed ? 'justify-center' : 'justify-between px-6'} border-b border-white/5`}>
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-rose-500 to-pink-600 flex items-center justify-center text-white shadow-lg shadow-rose-900/20">
-              <Heart fill="white" size={20} />
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="text-lg font-bold font-serif tracking-wide">Love Pilot</span>
-            )}
+      {/* --- MOBILE FULL MENU OVERLAY --- */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 bg-[#0F172A] flex flex-col animate-fade-in md:hidden">
+           <div className="p-4 flex items-center justify-between border-b border-white/5 bg-[#1E293B]/50">
+              <div className="flex items-center gap-2">
+                 <Heart className="text-rose-500" fill="currentColor" size={24} />
+                 <span className="font-bold text-lg font-serif">Love Pilot</span>
+              </div>
+              <button 
+                onClick={() => setIsMobileMenuOpen(false)}
+                className="p-2 bg-white/5 rounded-full hover:bg-white/10"
+              >
+                 <X size={24} className="text-slate-200" />
+              </button>
+           </div>
+           
+           <div className="flex-1 overflow-y-auto p-4 space-y-2">
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">Apps</div>
+              <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => {setActivePage('discover'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => {setActivePage('social'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => {setActivePage('messages'); setIsMobileMenuOpen(false);}} badge={unreadMessages > 0 ? unreadMessages : null} />
+              
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-2">AI Tools</div>
+              <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => {setActivePage('coach'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => {setActivePage('practice'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => {setActivePage('date-planner'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => {setActivePage('roster'); setIsMobileMenuOpen(false);}} />
+
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-2">Growth</div>
+              <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => {setActivePage('marketplace'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => {setActivePage('referral'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => {setActivePage('billing'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={SettingsIcon} label="Settings" active={activePage === 'settings'} onClick={() => {setActivePage('settings'); setIsMobileMenuOpen(false);}} />
+           </div>
+        </div>
+      )}
+
+      {/* --- DESKTOP SIDEBAR --- */}
+      <div className={`hidden md:flex flex-col border-r border-white/5 bg-[#0F172A]/95 backdrop-blur-xl transition-all duration-300 ${collapsed ? 'w-20' : 'w-72'}`}>
+        {/* Brand */}
+        <div className="p-6 flex items-center gap-3">
+          <div className="w-10 h-10 bg-gradient-to-tr from-rose-600 to-pink-600 rounded-xl flex items-center justify-center shadow-lg shadow-rose-900/20 shrink-0">
+             <Heart fill="white" size={20} className="text-white" />
           </div>
-          <button 
-            onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
-            className="hidden md:flex text-slate-500 hover:text-white transition"
-          >
-            {isSidebarCollapsed ? <ChevronRight size={18}/> : <ChevronLeft size={18}/>}
+          {!collapsed && (
+            <div>
+              <h1 className="text-xl font-bold font-serif tracking-tight text-white">Love Pilot</h1>
+              <p className="text-[10px] text-rose-400 font-bold tracking-widest uppercase">AI Dating Coach</p>
+            </div>
+          )}
+          <button onClick={() => setCollapsed(!collapsed)} className="ml-auto text-slate-500 hover:text-white transition">
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
           </button>
         </div>
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 space-y-1">
-          <NavItem collapsed={isSidebarCollapsed} icon={Heart} label="Discover" active={currentPage === 'discover' || currentPage === 'profile-detail'} onClick={() => navigateTo('discover')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={MessageCircle} label="Messages" active={currentPage === 'messages'} onClick={() => navigateTo('messages')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Globe} label="Social Hub" active={currentPage === 'social'} onClick={() => navigateTo('social')} />
+        <div className="flex-1 overflow-y-auto px-3 space-y-2 custom-scrollbar">
+          <div className={`px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>Main</div>
           
-          <div className={`my-4 border-t border-white/5 mx-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`} />
-          {!isSidebarCollapsed && <div className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Suite</div>}
+          <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => setActivePage('discover')} collapsed={collapsed} />
+          <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => setActivePage('social')} collapsed={collapsed} badge="New" />
+          <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => setActivePage('messages')} collapsed={collapsed} badge={unreadMessages > 0 ? unreadMessages : null} />
           
-          <NavItem collapsed={isSidebarCollapsed} icon={Brain} label="Love Coach" active={currentPage === 'coach'} onClick={() => navigateTo('coach')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Calendar} label="Date Planner" active={currentPage === 'dateplanner'} onClick={() => navigateTo('dateplanner')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Flame} label="Profile Roaster" active={currentPage === 'roster'} onClick={() => navigateTo('roster')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Dumbbell} label="Practice Mode" active={currentPage === 'practice'} onClick={() => navigateTo('practice')} />
+          <div className={`mt-6 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>AI Tools</div>
+          <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => setActivePage('coach')} collapsed={collapsed} />
+          <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => setActivePage('practice')} collapsed={collapsed} />
+          <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => setActivePage('date-planner')} collapsed={collapsed} />
+          <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => setActivePage('roster')} collapsed={collapsed} />
 
-          <div className={`my-4 border-t border-white/5 mx-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`} />
-          
-          <NavItem collapsed={isSidebarCollapsed} icon={Gift} label="Refer & Earn" active={currentPage === 'referral'} onClick={() => navigateTo('referral')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Bell} label="Notifications" active={currentPage === 'notifications'} onClick={() => navigateTo('notifications')} badge={unreadNotifications} />
-          <NavItem collapsed={isSidebarCollapsed} icon={CreditCard} label="Premium Plans" active={currentPage === 'billing'} onClick={() => navigateTo('billing')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={UserIcon} label="My Profile" active={currentPage === 'profile'} onClick={() => navigateTo('profile')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={SettingsIcon} label="Settings" active={currentPage === 'settings'} onClick={() => navigateTo('settings')} />
-          
-          {CURRENT_USER.role === 'user' && ( 
-             <NavItem collapsed={isSidebarCollapsed} icon={Shield} label="Admin" active={currentPage === 'admin'} onClick={() => navigateTo('admin')} />
-          )}
-        </nav>
+          <div className={`mt-6 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>Growth</div>
+          <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => setActivePage('marketplace')} collapsed={collapsed} />
+          <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => setActivePage('referral')} collapsed={collapsed} />
+          <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => setActivePage('billing')} collapsed={collapsed} />
+        </div>
 
-        {/* User Footer */}
+        {/* User Profile Footer */}
         <div className="p-4 border-t border-white/5">
-          <div className={`flex items-center gap-3 ${isSidebarCollapsed ? 'justify-center' : ''}`}>
-             <img src={CURRENT_USER.avatar} className="w-9 h-9 rounded-full object-cover border-2 border-white/10" />
-             {!isSidebarCollapsed && (
-               <div className="flex-1 overflow-hidden">
-                 <h4 className="text-sm font-semibold truncate">{CURRENT_USER.name}</h4>
-                 <div className="flex items-center gap-1">
-                   <StatusBadge status="online" />
-                   <span className="text-xs text-slate-400">Online</span>
-                 </div>
-               </div>
-             )}
+          <div className={`flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition cursor-pointer ${collapsed ? 'justify-center' : ''}`} onClick={() => setActivePage('settings')}>
+            <div className="relative">
+               <img src={currentUser.avatar} alt="User" className="w-10 h-10 rounded-full border-2 border-slate-700" />
+               <StatusBadge status="online" />
+            </div>
+            {!collapsed && (
+              <div className="flex-1 overflow-hidden">
+                <p className="text-sm font-bold text-white truncate">{currentUser.name}</p>
+                <p className="text-xs text-rose-400 font-medium truncate">{currentUser.plan} Plan</p>
+              </div>
+            )}
+            {!collapsed && <SettingsIcon size={18} className="text-slate-500" />}
           </div>
         </div>
-      </aside>
+      </div>
 
-
-      {/* 2. MAIN CONTENT AREA (Responsive) */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden relative bg-[#0F172A]">
+      {/* --- MAIN CONTENT --- */}
+      <div className="flex-1 flex flex-col relative w-full max-w-[100vw]">
         
-        {/* Mobile Header */}
-        <div className="md:hidden h-16 bg-[#1E293B]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 z-30 sticky top-0">
-          <div className="flex items-center gap-2">
-            <Heart className="text-rose-500 fill-rose-500" size={24} />
-            <span className="text-lg font-bold font-serif">Love Pilot</span>
-          </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white relative">
-            <Menu size={24} />
-            {unreadNotifications > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>}
-          </button>
-        </div>
-
-        {/* Mobile Drawer Menu (Overlay) */}
-        {mobileMenuOpen && (
-          <div className="md:hidden absolute inset-0 z-50 bg-[#0F172A]/95 backdrop-blur-xl p-6 animate-fade-in flex flex-col">
-            <div className="flex justify-between items-center mb-8">
-              <span className="text-xl font-bold">Menu</span>
-              <button onClick={() => setMobileMenuOpen(false)}><LogOut className="rotate-180" size={24}/></button>
+        {/* GLOBAL COUNTDOWN BANNER (Sticky Top) */}
+        {timeLeft.days >= 0 && (
+            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white text-[10px] md:text-xs font-bold py-1.5 px-4 text-center tracking-wide flex items-center justify-center gap-2 z-40 relative shadow-md">
+                <Clock size={12} className="animate-pulse" />
+                <span>BONUS: 6 Days Free Premium Fetcher Use Time Remaining: </span>
+                <span className="font-mono bg-black/20 px-1.5 rounded border border-white/10">{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m</span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
-               <button onClick={() => navigateTo('referral')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2 border border-white/5">
-                  <Gift size={28} className="text-emerald-400" /> <span className="text-sm font-bold">Refer & Earn</span>
-               </button>
-               <button onClick={() => navigateTo('dateplanner')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
-                  <Calendar size={28} className="text-rose-400" /> <span className="text-sm">Dates</span>
-               </button>
-               <button onClick={() => navigateTo('roster')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
-                  <Flame size={28} className="text-orange-400" /> <span className="text-sm">Roaster</span>
-               </button>
-               <button onClick={() => navigateTo('practice')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
-                  <Dumbbell size={28} className="text-blue-400" /> <span className="text-sm">Practice</span>
-               </button>
-               <button onClick={() => navigateTo('notifications')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2 relative">
-                  <Bell size={28} className="text-yellow-400" /> <span className="text-sm">Alerts</span>
-                  {unreadNotifications > 0 && <span className="absolute top-4 right-8 w-3 h-3 bg-rose-500 rounded-full"></span>}
-               </button>
-               <button onClick={() => navigateTo('settings')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
-                  <SettingsIcon size={28} className="text-slate-400" /> <span className="text-sm">Settings</span>
-               </button>
-               <button onClick={() => navigateTo('billing')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
-                  <CreditCard size={28} className="text-green-400" /> <span className="text-sm">Plans</span>
-               </button>
-            </div>
-            <div className="mt-auto">
-               <button className="w-full py-4 bg-white/10 rounded-xl font-bold">Log Out</button>
-            </div>
-          </div>
         )}
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto no-scrollbar scroll-smooth pb-24 md:pb-0">
-          <div className="w-full max-w-7xl mx-auto p-4 md:p-8 min-h-full">
+        {/* Mobile Header */}
+        <div className="md:hidden h-16 bg-[#0F172A]/80 backdrop-blur-md border-b border-white/5 flex items-center justify-between px-4 sticky top-0 z-30">
+           <div className="flex items-center gap-2">
+             <Heart className="text-rose-500" fill="currentColor" size={24} />
+             <span className="font-bold text-lg font-serif">Love Pilot</span>
+           </div>
+           <div className="flex items-center gap-4">
+              <button onClick={() => setActivePage('notifications')} className="relative">
+                 <Bell size={22} className="text-slate-400" />
+                 {unreadNotifications > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>}
+              </button>
+              {/* Menu Icon */}
+              <button onClick={() => setIsMobileMenuOpen(true)} className="p-1">
+                 <Menu size={26} className="text-white" />
+              </button>
+           </div>
+        </div>
+
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 md:p-6 lg:p-8 scroll-smooth pb-24 md:pb-6">
+          <div className="max-w-7xl mx-auto w-full">
             {renderContent()}
           </div>
-        </div>
+        </main>
 
-        {/* 3. MOBILE BOTTOM NAVIGATION (Fixed) */}
-        <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] bg-[#1E293B] border-t border-white/5 flex items-start pt-2 px-2 z-40 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
-           <MobileTab icon={Heart} label="Discover" active={currentPage === 'discover'} onClick={() => navigateTo('discover')} />
-           <MobileTab icon={MessageCircle} label="Chats" active={currentPage === 'messages'} onClick={() => navigateTo('messages')} />
-           <MobileTab icon={Brain} label="Coach" active={currentPage === 'coach'} onClick={() => navigateTo('coach')} />
-           <MobileTab icon={Globe} label="Social" active={currentPage === 'social'} onClick={() => navigateTo('social')} />
+        {/* --- MOBILE BOTTOM NAV --- */}
+        <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2 pb-5 z-40 flex justify-between items-center">
+           <MobileTab icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => setActivePage('discover')} />
+           <MobileTab icon={Globe} label="Social" active={activePage === 'social'} onClick={() => setActivePage('social')} />
+           <MobileTab icon={Brain} label="Coach" active={activePage === 'coach'} onClick={() => setActivePage('coach')} />
+           <MobileTab icon={MessageCircle} label="Chats" active={activePage === 'messages'} onClick={() => setActivePage('messages')} badge={unreadMessages || null} />
+           <MobileTab icon={Gift} label="Earn" active={activePage === 'referral'} onClick={() => setActivePage('referral')} />
         </div>
+      </div>
 
-      </main>
     </div>
   );
-};
-
-export default App;
+}
