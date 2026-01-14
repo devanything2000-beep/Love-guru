@@ -1,7 +1,8 @@
 {
-  "name": "FlowFetcher AI",
-  "description": "Production-ready AI Automation & Fetcher Platform with Admin Panel, Marketplace, and Real-time Status tracking.",
+  "name": "LOVE PILOT",
+  "description": "AI Social + Dating + Coaching Platform for Indian Audience. Features Matchmaking, Love Coach, and Practice Mode.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera"
   ]
 }

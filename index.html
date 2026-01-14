@@ -2,8 +2,8 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>FlowFetcher AI</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+    <title>Love Pilot - Your AI Coach</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
       tailwind.config = {
@@ -11,39 +11,70 @@
           extend: {
             colors: {
               brand: {
-                purple: '#6C2BD9',
-                orange: '#FF8A00',
-                dark: '#1a0b2e',
+                rose: '#E11D48',
+                dark: '#0F172A',
+                surface: '#1E293B',
+                accent: '#F43F5E',
               }
             },
             fontFamily: {
               sans: ['Inter', 'sans-serif'],
+              serif: ['Playfair Display', 'serif'],
             },
+            animation: {
+              'fade-in': 'fadeIn 0.3s ease-out',
+              'slide-up': 'slideUp 0.4s ease-out',
+            },
+            keyframes: {
+              fadeIn: {
+                '0%': { opacity: '0' },
+                '100%': { opacity: '1' },
+              },
+              slideUp: {
+                '0%': { transform: 'translateY(20px)', opacity: '0' },
+                '100%': { transform: 'translateY(0)', opacity: '1' },
+              }
+            }
           },
         },
       }
     </script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,600;1,600&display=swap" rel="stylesheet">
     <style>
       body {
         font-family: 'Inter', sans-serif;
-        background: linear-gradient(135deg, #2e1065 0%, #4c1d95 40%, #c2410c 100%);
+        /* Premium Dark Theme: Slate to Deep Rose Gradient */
+        background: radial-gradient(circle at top left, #310b18 0%, #0f172a 40%, #000000 100%);
+        background-attachment: fixed;
         min-height: 100vh;
         color: white;
+        overflow-x: hidden;
+        -webkit-tap-highlight-color: transparent;
       }
-      /* Custom Scrollbar */
+
+      /* Mobile-friendly scrollbar */
       ::-webkit-scrollbar {
-        width: 8px;
+        width: 4px;
       }
       ::-webkit-scrollbar-track {
-        background: rgba(255, 255, 255, 0.05);
+        background: transparent;
       }
       ::-webkit-scrollbar-thumb {
         background: rgba(255, 255, 255, 0.2);
-        border-radius: 4px;
+        border-radius: 10px;
       }
-      ::-webkit-scrollbar-thumb:hover {
-        background: rgba(255, 255, 255, 0.3);
+      
+      /* Utilities */
+      .no-scrollbar::-webkit-scrollbar {
+        display: none;
+      }
+      .no-scrollbar {
+        -ms-overflow-style: none;
+        scrollbar-width: none;
+      }
+      
+      input, textarea, button {
+        outline: none;
       }
     </style>
   <script type="importmap">
@@ -51,8 +82,9 @@
   "imports": {
     "react": "https://esm.sh/react@^19.2.3",
     "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
     "react-dom": "https://esm.sh/react-dom@^19.2.3",
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react-dom/client": "https://esm.sh/react-dom@^19.2.3/client",
     "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
     "recharts": "https://esm.sh/recharts@^3.6.0",
     "@google/genai": "https://esm.sh/@google/genai@^1.35.0"
