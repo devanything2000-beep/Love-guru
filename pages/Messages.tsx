@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { GlassCard, StatusBadge } from '../components/UIComponents';
-import { Search, Phone, Video, Send, ArrowLeft, Image as ImageIcon, MessageCircle } from 'lucide-react';
+import { Search, Phone, Video, Send, ArrowLeft, Image as ImageIcon, MessageCircle, Wand2, Sparkles } from 'lucide-react';
 import { ChatSession } from '../types';
+import { generateMessageSuggestions } from '../services/geminiService';
 
 interface MessagesProps {
   sessions: ChatSession[];
@@ -10,11 +11,21 @@ interface MessagesProps {
 export const Messages: React.FC<MessagesProps> = ({ sessions }) => {
   const [activeChatId, setActiveChatId] = useState<string | null>(null);
   const [input, setInput] = useState('');
-
-  // Mobile: If activeChatId is set, show Chat View, else show List View.
-  // Desktop: Always show both.
+  const [showAiTools, setShowAiTools] = useState(false);
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [loadingSuggestions, setLoadingSuggestions] = useState(false);
 
   const currentChat = sessions.find(c => c.id === activeChatId);
+
+  const handleAiSuggest = async (tone: string) => {
+    setLoadingSuggestions(true);
+    const context = `Last message from ${currentChat?.userName}: "${currentChat?.lastMessage}". My relationship status: Dating.`;
+    const result = await generateMessageSuggestions(context, tone);
+    // Parse result simply for demo (assuming raw text return)
+    const lines = result.split('\n').filter(l => l.trim().length > 0).slice(0, 3);
+    setSuggestions(lines);
+    setLoadingSuggestions(false);
+  };
 
   return (
     <div className="h-[calc(100vh-8rem)] md:h-[calc(100vh-6rem)] flex gap-4 animate-fade-in relative">
@@ -43,7 +54,7 @@ export const Messages: React.FC<MessagesProps> = ({ sessions }) => {
                sessions.map(session => (
                   <button 
                      key={session.id}
-                     onClick={() => setActiveChatId(session.id)}
+                     onClick={() => { setActiveChatId(session.id); setSuggestions([]); setShowAiTools(false); }}
                      className={`
                         w-full flex items-center gap-3 p-4 border-b border-white/5 transition-colors
                         ${activeChatId === session.id ? 'bg-white/5' : 'hover:bg-white/5'}
@@ -99,13 +110,13 @@ export const Messages: React.FC<MessagesProps> = ({ sessions }) => {
                      </div>
                   </div>
                   <div className="flex gap-4 text-slate-400">
-                     <Phone size={20} />
-                     <Video size={20} />
+                     <Phone size={20} className="hover:text-white cursor-pointer" />
+                     <Video size={20} className="hover:text-white cursor-pointer" />
                   </div>
                </div>
 
                {/* Messages Body */}
-               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0F172A]/50">
+               <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#0F172A]/50 relative">
                   <div className="flex justify-center my-4">
                      <span className="text-[10px] text-slate-500 uppercase tracking-widest bg-white/5 px-3 py-1 rounded-full">Today</span>
                   </div>
@@ -114,7 +125,7 @@ export const Messages: React.FC<MessagesProps> = ({ sessions }) => {
                   <div className="flex justify-start gap-2 max-w-[85%]">
                      <img src={currentChat.userAvatar} className="w-6 h-6 rounded-full self-end mb-1" />
                      <div className="bg-[#1E293B] border border-white/5 text-slate-200 p-3 rounded-2xl rounded-bl-none text-sm leading-relaxed shadow-sm">
-                        {currentChat.lastMessage || "Hey! I saw you like jazz? There's a cool spot in Bandra playing live tonight."}
+                        {currentChat.lastMessage}
                      </div>
                   </div>
 
@@ -124,16 +135,65 @@ export const Messages: React.FC<MessagesProps> = ({ sessions }) => {
                         Oh really? I'd love to go! What time does it start? 🎷
                      </div>
                   </div>
+
+                  {/* AI Suggestions Overlay */}
+                  {showAiTools && (
+                     <div className="absolute bottom-4 left-4 right-4 bg-[#1E293B] border border-white/10 p-4 rounded-xl shadow-2xl animate-slide-up z-10">
+                        <div className="flex justify-between items-center mb-3">
+                           <div className="flex items-center gap-2 text-rose-400 font-bold text-sm">
+                              <Sparkles size={16} /> AI Reply Assistant
+                           </div>
+                           <button onClick={() => setShowAiTools(false)} className="text-white/40 hover:text-white"><Sparkles size={14} className="rotate-45" /></button>
+                        </div>
+                        
+                        <div className="flex gap-2 mb-4 overflow-x-auto pb-2">
+                           {['Cute', 'Funny', 'Romantic', 'Ice Breaker'].map(tone => (
+                              <button 
+                                 key={tone} 
+                                 onClick={() => handleAiSuggest(tone)}
+                                 className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded-full text-xs border border-white/10 whitespace-nowrap"
+                              >
+                                 {tone}
+                              </button>
+                           ))}
+                        </div>
+
+                        <div className="space-y-2">
+                           {loadingSuggestions ? (
+                              <div className="text-center text-xs text-slate-500 py-2">Generating magic...</div>
+                           ) : suggestions.length > 0 ? (
+                              suggestions.map((sug, i) => (
+                                 <button 
+                                    key={i} 
+                                    onClick={() => { setInput(sug.replace(/^[-\d.]+\s*/, '').replace(/"/g, '')); setShowAiTools(false); }}
+                                    className="w-full text-left p-2 bg-[#0F172A] rounded-lg text-sm text-slate-300 hover:text-white hover:bg-rose-500/10 transition"
+                                 >
+                                    {sug}
+                                 </button>
+                              ))
+                           ) : (
+                              <div className="text-center text-xs text-slate-600 italic">Select a tone to generate replies</div>
+                           )}
+                        </div>
+                     </div>
+                  )}
                </div>
 
                {/* Input Area */}
                <div className="p-3 bg-[#1E293B] border-t border-white/5 flex items-center gap-2">
+                  <button 
+                     onClick={() => setShowAiTools(!showAiTools)}
+                     className={`p-2 rounded-full transition ${showAiTools ? 'bg-rose-500 text-white shadow-glow' : 'text-rose-400 hover:text-white bg-white/5'}`}
+                  >
+                     <Wand2 size={20} />
+                  </button>
                   <button className="p-2 text-slate-400 hover:text-white bg-white/5 rounded-full"><ImageIcon size={20}/></button>
                   <input 
                      className="flex-1 bg-[#0F172A] border border-white/10 rounded-full px-4 py-2.5 text-sm focus:border-rose-500 transition"
                      placeholder="Message..."
                      value={input}
                      onChange={(e) => setInput(e.target.value)}
+                     onKeyDown={(e) => e.key === 'Enter' && setInput('')}
                   />
                   <button className="p-2.5 bg-rose-600 text-white rounded-full shadow-lg shadow-rose-900/20 active:scale-95 transition">
                      <Send size={18} />

@@ -1,6 +1,7 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { SYSTEM_PROMPTS } from '../constants';
-import { CoachSessionInput } from '../types';
+import { CoachSessionInput, CoachResponse } from '../types';
 
 const getApiKey = () => {
   try {
@@ -13,7 +14,7 @@ const getApiKey = () => {
 
 const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
-export const generateLoveCoachResponse = async (input: CoachSessionInput) => {
+export const generateLoveCoachResponse = async (input: CoachSessionInput): Promise<CoachResponse | null> => {
   try {
     const prompt = `
       User Situation:
@@ -28,7 +29,17 @@ export const generateLoveCoachResponse = async (input: CoachSessionInput) => {
       - Personality: ${input.context.personality}
       - Surroundings: ${input.context.surroundings}
       
-      Provide actionable advice in Hinglish.
+      TASK: Provide advice in Hinglish (Hindi + English mix).
+      RETURN JSON ONLY. Do not use Markdown code blocks.
+      Structure:
+      {
+        "solution": "Psychology backed solution in 2-3 lines (Samadhan)",
+        "script": "Exact dialogue to say (Bolne ke liye script)",
+        "tone": "How to speak (Awaaz aur Tone)",
+        "bodyLanguage": "Actionable body language tips (Body Language)",
+        "bestTime": "Best time to execute this (Baat karne ke liye accha din)",
+        "keyNote": "One crucial warning or tip (Khas baat)"
+      }
     `;
 
     const response = await ai.models.generateContent({
@@ -36,17 +47,22 @@ export const generateLoveCoachResponse = async (input: CoachSessionInput) => {
       config: {
         systemInstruction: SYSTEM_PROMPTS.loveCoach,
         temperature: 0.7,
+        responseMimeType: "application/json"
       },
       contents: prompt,
     });
-    return response.text || "Love Pilot is thinking...";
+    
+    if (response.text) {
+        return JSON.parse(response.text) as CoachResponse;
+    }
+    return null;
   } catch (error) {
     console.error("Gemini API Error:", error);
-    return "Oops, connection issue. Please try again.";
+    return null;
   }
 };
 
-export const generateDatePlan = async (city: string, vibe: string, budget: string) => {
+export const generateDatePlan = async (city: string, vibe: string, vibe2: string) => {
   try {
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
@@ -54,7 +70,7 @@ export const generateDatePlan = async (city: string, vibe: string, budget: strin
         systemInstruction: SYSTEM_PROMPTS.datePlanner,
         temperature: 0.8,
       },
-      contents: `Plan a date in ${city}. Vibe: ${vibe}. Budget: ${budget}.`,
+      contents: `Plan a date in ${city}. Vibe: ${vibe}. Budget: ${vibe2}.`,
     });
     return response.text || "Generating plan...";
   } catch (error) {
@@ -91,6 +107,38 @@ export const generatePracticeResponse = async (history: {role: string, content: 
     return response.text || "...";
   } catch (error) {
     return "(Silence...)";
+  }
+};
+
+export const generateMessageSuggestions = async (context: string, tone: string) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.messageHelper,
+        temperature: 0.7,
+      },
+      contents: `Context: ${context}. Tone: ${tone}. Generate 3 options.`,
+    });
+    return response.text || "Suggestions unavailable.";
+  } catch (error) {
+    return "Error generating suggestions.";
+  }
+};
+
+export const generateCaption = async (description: string) => {
+  try {
+    const response = await ai.models.generateContent({
+      model: 'gemini-3-flash-preview',
+      config: {
+        systemInstruction: SYSTEM_PROMPTS.captionGenerator,
+        temperature: 0.8,
+      },
+      contents: `Photo Description: ${description}`,
+    });
+    return response.text || "Caption unavailable.";
+  } catch (error) {
+    return "Error generating caption.";
   }
 };
 

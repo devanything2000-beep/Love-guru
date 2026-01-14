@@ -1,21 +1,10 @@
+
 export type UserRole = 'user' | 'admin';
 export type PlanType = 'Free' | 'Pro' | 'Premium';
 export type OnlineStatus = 'online' | 'offline' | 'busy';
+export type ReferralLevel = 'Bronze' | 'Silver' | 'Gold';
 
 // --- DATABASE SCHEMA REPRESENTATION ---
-/*
-  Table: users
-    - id, name, phone, plan, coins_balance
-
-  Table: coaching_logs
-    - id, user_id, mood, situation, stage, obstacle, detailed_context, ai_advice, created_at
-
-  Table: date_plans
-    - id, user_id, city, vibe, budget, ai_itinerary
-
-  Table: profile_reviews
-    - id, user_id, bio_text, score, feedback
-*/
 
 export interface User {
   id: string;
@@ -32,6 +21,34 @@ export interface User {
   matchPercentage?: number; 
   isOnline: boolean;
   lastActive: string;
+  redFlags?: string[];
+  greenFlags?: string[];
+  referralCode?: string;
+  referralCount?: number;
+  referralEarnings?: number;
+  referralLevel?: ReferralLevel;
+  
+  // Monetization & Referral Logic
+  subscriptionStatus?: 'active' | 'trial' | 'expired' | 'free';
+  referralsThisMonth: number; // Tracks the "Refer 2 people" goal
+  premiumUntil?: string; // ISO Date for when premium/trial ends
+}
+
+export interface Match {
+  userId: string;
+  matchedUserId: string;
+  compatibilityScore: number;
+  matchedAt: string;
+}
+
+export interface Notification {
+  id: string;
+  type: 'match' | 'message' | 'system' | 'boost';
+  title: string;
+  message: string;
+  timestamp: string;
+  isRead: boolean;
+  actionUrl?: string;
 }
 
 export interface CoachSessionInput {
@@ -39,13 +56,30 @@ export interface CoachSessionInput {
   locationType: string;
   stage: string;
   confidence: string;
-  obstacleCategory: string; // 'Couple', 'Family', 'Society'
+  obstacleCategory: string;
   obstacleDetail: string;
   context: {
     locationDetails: string;
     personality: string;
     surroundings: string;
   }
+}
+
+// Structured Response from AI
+export interface CoachResponse {
+  solution: string;
+  script: string;
+  tone: string;
+  bodyLanguage: string;
+  bestTime: string;
+  keyNote: string;
+}
+
+export interface CoachHistoryItem {
+  id: string;
+  date: string;
+  input: CoachSessionInput;
+  response: CoachResponse;
 }
 
 export interface Post {
@@ -66,6 +100,7 @@ export interface Message {
   text: string;
   timestamp: Date;
   isRead: boolean;
+  isAiSuggested?: boolean;
 }
 
 export interface ChatSession {
@@ -115,4 +150,40 @@ export interface Plan {
   currency: string;
   features: string[];
   recommended?: boolean;
+}
+
+export interface AISettings {
+  tone: 'Cute' | 'Funny' | 'Romantic' | 'Professional';
+  language: 'English' | 'Hindi' | 'Hinglish';
+  safetyFilter: boolean;
+}
+
+export interface ReferralStat {
+  date: string;
+  referrals: number;
+  revenue: number;
+  fraudBlocked: number;
+}
+
+export interface ReferralTier {
+  name: ReferralLevel;
+  minReferrals: number;
+  reward: string;
+  color: string;
+}
+
+export interface SaaSMetrics {
+  mrr: number;
+  arr: number;
+  churnRate: number; // percentage
+  cac: number; // Customer Acquisition Cost
+  ltv: number; // Lifetime Value
+  activeTrials: number;
+  conversionRate: number; // Trial to Paid %
+}
+
+export interface FunnelStage {
+  name: string;
+  value: number;
+  fill: string;
 }

@@ -1,13 +1,15 @@
+
 import React, { useState } from 'react';
 import { GlassCard, PrimaryButton } from '../components/UIComponents';
 import { generateLoveCoachResponse } from '../services/geminiService';
-import { CoachSessionInput } from '../types';
+import { CoachSessionInput, CoachResponse, CoachHistoryItem } from '../types';
 import { 
   Smile, Frown, Zap, Minus, 
   Users, Eye, Lock, 
   User, Heart, Star, Sparkles, 
   AlertTriangle, Shield, Home,
-  ChevronDown, ChevronUp, ArrowRight, MessageSquare
+  ChevronDown, ChevronUp, ArrowRight, MessageSquare,
+  Volume2, Copy, Share2, Menu, X, Calendar, Activity
 } from 'lucide-react';
 
 const SelectableCard = ({ selected, onClick, icon: Icon, label, subLabel, colorClass }: any) => (
@@ -39,12 +41,38 @@ const SectionHeader = ({ icon: Icon, title }: any) => (
   </div>
 );
 
+// --- Output Card Component ---
+const AdviceCard = ({ title, icon: Icon, children, accentColor, onCopy, onSpeak, onShare }: any) => (
+  <div className={`rounded-xl border ${accentColor} bg-white/5 mb-4 overflow-hidden animate-slide-up`}>
+     <div className={`px-4 py-3 flex items-center justify-between border-b ${accentColor.replace('border-', 'border-opacity-30 border-')}`}>
+        <div className="flex items-center gap-2">
+           <Icon size={18} className={accentColor.includes('rose') ? 'text-rose-400' : accentColor.includes('blue') ? 'text-blue-400' : accentColor.includes('green') ? 'text-emerald-400' : 'text-yellow-400'} />
+           <span className="font-bold text-sm text-white">{title}</span>
+        </div>
+        <div className="flex gap-2">
+           {onSpeak && <button onClick={onSpeak} className="p-1.5 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition"><Volume2 size={14}/></button>}
+           {onCopy && <button onClick={onCopy} className="p-1.5 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition"><Copy size={14}/></button>}
+           {onShare && <button onClick={onShare} className="p-1.5 hover:bg-white/10 rounded-full text-white/60 hover:text-white transition"><Share2 size={14}/></button>}
+        </div>
+     </div>
+     <div className="p-4 text-sm text-slate-200 leading-relaxed whitespace-pre-wrap">
+        {children}
+     </div>
+  </div>
+);
+
 export const LoveCoach = () => {
   const [loading, setLoading] = useState(false);
-  const [result, setResult] = useState('');
-  const [expandContext, setExpandContext] = useState(false);
+  const [result, setResult] = useState<CoachResponse | null>(null);
+  
+  // History State
+  const [history, setHistory] = useState<CoachHistoryItem[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const [historyFilter, setHistoryFilter] = useState('All');
+
+  // Input State
   const [input, setInput] = useState<CoachSessionInput>({
-    mood: 'neutral',
+    mood: '',
     locationType: '',
     stage: '',
     confidence: '',
@@ -53,29 +81,203 @@ export const LoveCoach = () => {
     context: { locationDetails: '', personality: '', surroundings: '' }
   });
 
+  // Validation
+  const isValid = input.mood && input.locationType && input.stage;
+
   const handleGenerate = async () => {
+    if (!isValid) return;
     setLoading(true);
+    setResult(null);
     const response = await generateLoveCoachResponse(input);
-    setResult(response);
+    
+    if (response) {
+       setResult(response);
+       // Add to History
+       const newHistoryItem: CoachHistoryItem = {
+          id: Date.now().toString(),
+          date: new Date().toLocaleDateString(),
+          input: { ...input },
+          response: response
+       };
+       setHistory(prev => [newHistoryItem, ...prev]);
+       window.scrollTo({ top: 0, behavior: 'smooth' }); // Scroll to top to see result
+    }
     setLoading(false);
-    // Auto scroll to bottom on mobile
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
   };
 
+  const speakText = (text: string) => {
+     if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        // Try to find a Hindi or Indian English voice, fallback to default
+        const voices = window.speechSynthesis.getVoices();
+        const indianVoice = voices.find(v => v.lang.includes('IN')) || voices[0];
+        if (indianVoice) utterance.voice = indianVoice;
+        window.speechSynthesis.speak(utterance);
+     }
+  };
+
+  const copyText = (text: string) => {
+     navigator.clipboard.writeText(text);
+     // In a real app, show toast
+  };
+
+  const shareText = async (title: string, text: string) => {
+     if (navigator.share) {
+        try {
+           await navigator.share({ title: 'Love Pilot Advice', text: `${title}: ${text}` });
+        } catch (err) {}
+     } else {
+        copyText(`${title}: ${text}`);
+     }
+  };
+
+  const loadFromHistory = (item: CoachHistoryItem) => {
+     setInput(item.input);
+     setResult(item.response);
+     setShowHistory(false);
+     window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Filter History
+  const filteredHistory = history.filter(item => {
+     if (historyFilter === 'All') return true;
+     return item.input.stage === historyFilter || item.input.mood === historyFilter;
+  });
+
   return (
-    <div className="animate-fade-in max-w-6xl mx-auto w-full">
+    <div className="animate-fade-in max-w-6xl mx-auto w-full relative">
       
-      {/* Hero Section */}
-      <div className="text-center mb-8 py-4">
-        <h1 className="text-3xl md:text-4xl font-serif font-bold text-white mb-2">Love Coach AI</h1>
-        <p className="text-slate-400 max-w-md mx-auto">Tell me your situation. I'll give you the exact words and psychology to win them over.</p>
+      {/* Top Bar with History Toggle */}
+      <div className="flex justify-between items-center mb-6">
+         <h1 className="text-3xl font-serif font-bold text-white">Love Coach AI</h1>
+         <button 
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 rounded-xl transition border border-white/10"
+         >
+            <Menu size={18} /> <span className="text-sm font-bold">History</span>
+         </button>
       </div>
+
+      {/* History Drawer */}
+      {showHistory && (
+         <div className="fixed inset-0 z-50 flex justify-end">
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setShowHistory(false)}></div>
+            <div className="relative w-full max-w-sm bg-[#1E293B] h-full shadow-2xl border-l border-white/10 animate-slide-up flex flex-col">
+               <div className="p-4 border-b border-white/10 flex justify-between items-center">
+                  <h3 className="font-bold text-lg">Strategy History</h3>
+                  <button onClick={() => setShowHistory(false)}><X size={20} className="text-slate-400 hover:text-white"/></button>
+               </div>
+               
+               {/* Filters */}
+               <div className="p-4 border-b border-white/10 overflow-x-auto whitespace-nowrap scrollbar-hide">
+                  {['All', 'happy', 'sad', 'stranger', 'dating', 'breakup'].map(f => (
+                     <button 
+                        key={f} 
+                        onClick={() => setHistoryFilter(f)}
+                        className={`px-3 py-1 rounded-full text-xs font-bold mr-2 border capitalize ${historyFilter === f ? 'bg-rose-500 border-rose-500 text-white' : 'border-white/20 text-slate-400'}`}
+                     >
+                        {f}
+                     </button>
+                  ))}
+               </div>
+
+               <div className="flex-1 overflow-y-auto p-4 space-y-3">
+                  {filteredHistory.length === 0 ? (
+                     <div className="text-center text-slate-500 mt-10">No history found.</div>
+                  ) : (
+                     filteredHistory.map(item => (
+                        <div key={item.id} onClick={() => loadFromHistory(item)} className="p-3 bg-white/5 hover:bg-white/10 rounded-xl cursor-pointer border border-white/5 transition">
+                           <div className="flex justify-between mb-1">
+                              <span className="text-xs text-rose-400 font-bold uppercase">{item.input.stage}</span>
+                              <span className="text-[10px] text-slate-500">{item.date}</span>
+                           </div>
+                           <p className="text-sm text-white font-medium line-clamp-1">{item.response.solution}</p>
+                           <div className="flex gap-2 mt-2">
+                              {item.input.mood && <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded text-slate-400">{item.input.mood}</span>}
+                              {item.input.locationType && <span className="text-[10px] bg-black/20 px-2 py-0.5 rounded text-slate-400 capitalize">{item.input.locationType}</span>}
+                           </div>
+                        </div>
+                     ))
+                  )}
+               </div>
+            </div>
+         </div>
+      )}
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-8 items-start">
         
+        {/* Results Column (Shows first on mobile if result exists) */}
+        {result && (
+           <div className="xl:col-span-1 xl:col-start-3 xl:row-start-1 order-1 xl:order-2 mb-8 xl:mb-0">
+              <div className="sticky top-6 space-y-4">
+                 <div className="bg-gradient-to-r from-rose-600 to-pink-600 p-4 rounded-xl shadow-lg flex items-center gap-3">
+                    <Sparkles className="text-white fill-white" size={24} />
+                    <div>
+                       <h3 className="font-bold text-white">Your Personal Strategy</h3>
+                       <p className="text-xs text-white/80">AI Coach Generated</p>
+                    </div>
+                 </div>
+
+                 {/* 1. Solution */}
+                 <AdviceCard 
+                     title="Samadhan (Solution)" 
+                     icon={Shield} 
+                     accentColor="border-rose-500/30"
+                     onCopy={() => copyText(result.solution)}
+                     onSpeak={() => speakText(result.solution)}
+                 >
+                    {result.solution}
+                 </AdviceCard>
+
+                 {/* 2. Script */}
+                 <AdviceCard 
+                     title="Bolne ke liye Script" 
+                     icon={MessageSquare} 
+                     accentColor="border-purple-500/30"
+                     onCopy={() => copyText(result.script)}
+                     onSpeak={() => speakText(result.script)}
+                     onShare={() => shareText('Script', result.script)}
+                 >
+                    <div className="bg-black/20 p-3 rounded-lg border-l-2 border-purple-400 italic">
+                       "{result.script}"
+                    </div>
+                 </AdviceCard>
+
+                 {/* 3. Tone */}
+                 <AdviceCard title="Awaaz aur Tone" icon={Volume2} accentColor="border-blue-500/30">
+                    {result.tone}
+                 </AdviceCard>
+
+                 {/* 4. Body Language */}
+                 <AdviceCard title="Body Language Tips" icon={Activity} accentColor="border-green-500/30">
+                    {result.bodyLanguage}
+                 </AdviceCard>
+
+                 {/* 5. Best Time */}
+                 <AdviceCard title="Baat karne ke liye accha din" icon={Calendar} accentColor="border-teal-500/30">
+                    {result.bestTime}
+                 </AdviceCard>
+
+                 {/* 6. Key Note */}
+                 <AdviceCard title="Khas Baat (Note)" icon={AlertTriangle} accentColor="border-yellow-500/30 bg-yellow-900/10">
+                    {result.keyNote}
+                 </AdviceCard>
+
+                 <PrimaryButton onClick={() => setResult(null)} variant="outline" className="w-full">
+                    Start New Session
+                 </PrimaryButton>
+              </div>
+           </div>
+        )}
+
         {/* Form Column */}
-        <div className="xl:col-span-2 space-y-6">
+        <div className={`xl:col-span-2 space-y-6 ${result ? 'order-2 xl:order-1 opacity-50 pointer-events-none xl:opacity-100 xl:pointer-events-auto' : ''}`}>
           
+          <div className="text-center xl:text-left mb-6">
+             <h2 className="text-2xl font-bold text-white">Session Details</h2>
+             <p className="text-slate-400 text-sm">Fill in the details below to unlock your strategy.</p>
+          </div>
+
           {/* 1. Mood & Vibe */}
           <GlassCard>
             <SectionHeader icon={Smile} title="How are you feeling?" />
@@ -184,45 +386,13 @@ export const LoveCoach = () => {
             </div>
           </GlassCard>
 
-          <PrimaryButton onClick={handleGenerate} disabled={loading} className="w-full text-lg shadow-xl shadow-rose-900/50">
-             {loading ? 'Creating Strategy...' : 'Generate My Strategy ✨'}
+          <PrimaryButton 
+            onClick={handleGenerate} 
+            disabled={!isValid || loading} 
+            className={`w-full text-lg shadow-xl ${!isValid ? 'opacity-50 grayscale cursor-not-allowed' : 'shadow-rose-900/50'}`}
+          >
+             {loading ? 'Creating Strategy...' : !isValid ? 'Fill Details to Activate' : 'Generate My Strategy ✨'}
           </PrimaryButton>
-        </div>
-
-        {/* Results Column */}
-        <div className="xl:col-span-1">
-          {result ? (
-            <div className="animate-slide-up sticky top-6">
-              <div className="bg-gradient-to-b from-[#1E293B] to-[#0F172A] border border-emerald-500/30 rounded-2xl p-6 shadow-2xl">
-                 <div className="flex items-center gap-3 mb-6 border-b border-white/10 pb-4">
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                       <Sparkles size={20} />
-                    </div>
-                    <div>
-                       <h3 className="font-bold text-white">Coach's Plan</h3>
-                       <p className="text-xs text-emerald-400">AI Analysis Complete</p>
-                    </div>
-                 </div>
-                 
-                 <div className="prose prose-invert prose-sm max-w-none text-slate-300 leading-relaxed whitespace-pre-wrap">
-                    {result}
-                 </div>
-
-                 <div className="mt-6 pt-4 border-t border-white/10 flex flex-col gap-2">
-                    <PrimaryButton variant="secondary" className="w-full text-sm">Save to Library</PrimaryButton>
-                    <PrimaryButton variant="outline" className="w-full text-sm">Practice Audio</PrimaryButton>
-                 </div>
-              </div>
-            </div>
-          ) : (
-             <div className="hidden xl:flex h-96 border-2 border-dashed border-white/10 rounded-2xl flex-col items-center justify-center text-center p-8">
-                <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-4">
-                   <Heart size={40} className="text-white/10" />
-                </div>
-                <h3 className="text-lg font-bold text-white mb-2">Ready to Coach</h3>
-                <p className="text-slate-500 text-sm">Fill out the details on the left, and I'll generate a custom psychology-backed script for you.</p>
-             </div>
-          )}
         </div>
 
       </div>

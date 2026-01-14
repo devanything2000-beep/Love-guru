@@ -1,5 +1,6 @@
+
 import React, { useState } from 'react';
-import { Heart, MessageCircle, Globe, Brain, Dumbbell, User, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Map, Flame, Calendar, Menu } from 'lucide-react';
+import { Heart, MessageCircle, Globe, Brain, Dumbbell, User as UserIcon, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Calendar, Flame, Menu, Bell, Settings as SettingsIcon, Gift } from 'lucide-react';
 import { Discover } from './pages/Discover';
 import { SocialHub } from './pages/SocialHub';
 import { LoveCoach } from './pages/LoveCoach';
@@ -9,17 +10,21 @@ import { AdminPanel } from './pages/Admin';
 import { Billing } from './pages/Billing';
 import { DatePlanner } from './pages/DatePlanner';
 import { ProfileRoster } from './pages/ProfileRoster';
-import { CURRENT_USER, CHAT_SESSIONS } from './constants';
+import { Notifications } from './pages/Notifications';
+import { Settings } from './pages/Settings';
+import { Referral } from './pages/Referral';
+import { ProfileDetail } from './pages/ProfileDetail';
+import { CURRENT_USER, CHAT_SESSIONS, NOTIFICATIONS } from './constants';
 import { StatusBadge } from './components/UIComponents';
-import { ChatSession, User as UserType } from './types';
+import { ChatSession, User } from './types';
 
 // --- Sidebar Item (Desktop) ---
-const NavItem = ({ icon: Icon, label, active, onClick, collapsed }: any) => (
+const NavItem = ({ icon: Icon, label, active, onClick, collapsed, badge }: any) => (
   <button
     onClick={onClick}
     title={collapsed ? label : ''}
     className={`
-      w-full flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group
+      w-full flex items-center gap-3 py-3 rounded-xl transition-all duration-200 group relative
       ${active 
         ? 'bg-gradient-to-r from-rose-600 to-pink-600 text-white shadow-lg' 
         : 'text-slate-400 hover:bg-white/5 hover:text-white'
@@ -29,6 +34,11 @@ const NavItem = ({ icon: Icon, label, active, onClick, collapsed }: any) => (
   >
     <Icon size={22} className={`flex-shrink-0 transition-transform group-hover:scale-110 ${active ? 'text-white' : 'text-slate-400 group-hover:text-white'}`} />
     {!collapsed && <span className="font-medium whitespace-nowrap overflow-hidden text-sm">{label}</span>}
+    {badge > 0 && (
+      <span className={`absolute ${collapsed ? 'top-2 right-2' : 'right-4'} bg-rose-500 text-white text-[10px] font-bold w-5 h-5 flex items-center justify-center rounded-full`}>
+         {badge}
+      </span>
+    )}
   </button>
 );
 
@@ -49,29 +59,26 @@ const App = () => {
   const [currentPage, setCurrentPage] = useState('discover');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedProfile, setSelectedProfile] = useState<User | null>(null);
   
-  // --- Global State for Chats/Matches ---
+  // --- Global State ---
   const [myChats, setMyChats] = useState<ChatSession[]>(CHAT_SESSIONS);
 
-  // Check if a user is already liked/matched
   const isUserLiked = (userId: string) => myChats.some(chat => chat.userId === userId);
 
-  // Toggle Like Logic (Add/Remove from Messages)
-  const handleToggleLike = (profile: UserType) => {
+  const handleToggleLike = (profile: User) => {
     setMyChats(prev => {
       const exists = prev.find(c => c.userId === profile.id);
       if (exists) {
-        // Dislike: Remove from chats
         return prev.filter(c => c.userId !== profile.id);
       } else {
-        // Like: Add to chats
         const newSession: ChatSession = {
           id: `new-${profile.id}-${Date.now()}`,
           userId: profile.id,
           userName: profile.name,
           userAvatar: profile.avatar,
           lastMessage: "You matched! Say hello 👋",
-          unreadCount: 1, // Mark as new match
+          unreadCount: 1,
           status: profile.isOnline ? 'online' : 'offline'
         };
         return [newSession, ...prev];
@@ -79,11 +86,26 @@ const App = () => {
     });
   };
 
+  const handleViewProfile = (user: User) => {
+     setSelectedProfile(user);
+     setCurrentPage('profile-detail');
+  };
+
+  const navigateTo = (page: string) => {
+     setCurrentPage(page);
+     setSelectedProfile(null);
+     setMobileMenuOpen(false);
+  };
+
   // Define Page Content
   const renderContent = () => {
+    if (currentPage === 'profile-detail' && selectedProfile) {
+       return <ProfileDetail user={selectedProfile} onBack={() => navigateTo('discover')} />;
+    }
+
     switch (currentPage) {
       case 'discover': 
-        return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} />;
+        return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} onViewProfile={handleViewProfile} />;
       case 'messages': 
         return <Messages sessions={myChats} />;
       case 'social': return <SocialHub />;
@@ -93,10 +115,15 @@ const App = () => {
       case 'roster': return <ProfileRoster />;
       case 'admin': return <AdminPanel />;
       case 'billing': return <Billing />;
-      case 'profile': return <div className="p-8 text-center text-white/50">Profile Settings (Coming Soon)</div>;
-      default: return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} />;
+      case 'notifications': return <Notifications />;
+      case 'settings': return <Settings />;
+      case 'referral': return <Referral />;
+      case 'profile': return <Settings />; // Reuse settings for profile for now
+      default: return <Discover onToggleLike={handleToggleLike} isLiked={isUserLiked} onViewProfile={handleViewProfile} />;
     }
   };
+
+  const unreadNotifications = NOTIFICATIONS.filter(n => !n.isRead).length;
 
   return (
     <div className="flex h-screen bg-[#0F172A] text-white overflow-hidden">
@@ -130,24 +157,28 @@ const App = () => {
 
         {/* Navigation */}
         <nav className="flex-1 overflow-y-auto custom-scrollbar py-6 px-3 space-y-1">
-          <NavItem collapsed={isSidebarCollapsed} icon={Heart} label="Discover" active={currentPage === 'discover'} onClick={() => setCurrentPage('discover')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={MessageCircle} label="Messages" active={currentPage === 'messages'} onClick={() => setCurrentPage('messages')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Globe} label="Social Hub" active={currentPage === 'social'} onClick={() => setCurrentPage('social')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Heart} label="Discover" active={currentPage === 'discover' || currentPage === 'profile-detail'} onClick={() => navigateTo('discover')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={MessageCircle} label="Messages" active={currentPage === 'messages'} onClick={() => navigateTo('messages')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Globe} label="Social Hub" active={currentPage === 'social'} onClick={() => navigateTo('social')} />
           
           <div className={`my-4 border-t border-white/5 mx-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`} />
           {!isSidebarCollapsed && <div className="px-4 text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">AI Suite</div>}
           
-          <NavItem collapsed={isSidebarCollapsed} icon={Brain} label="Love Coach" active={currentPage === 'coach'} onClick={() => setCurrentPage('coach')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Calendar} label="Date Planner" active={currentPage === 'dateplanner'} onClick={() => setCurrentPage('dateplanner')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Flame} label="Profile Roaster" active={currentPage === 'roster'} onClick={() => setCurrentPage('roster')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={Dumbbell} label="Practice Mode" active={currentPage === 'practice'} onClick={() => setCurrentPage('practice')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Brain} label="Love Coach" active={currentPage === 'coach'} onClick={() => navigateTo('coach')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Calendar} label="Date Planner" active={currentPage === 'dateplanner'} onClick={() => navigateTo('dateplanner')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Flame} label="Profile Roaster" active={currentPage === 'roster'} onClick={() => navigateTo('roster')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Dumbbell} label="Practice Mode" active={currentPage === 'practice'} onClick={() => navigateTo('practice')} />
 
           <div className={`my-4 border-t border-white/5 mx-2 ${isSidebarCollapsed ? 'hidden' : 'block'}`} />
           
-          <NavItem collapsed={isSidebarCollapsed} icon={CreditCard} label="Premium Plans" active={currentPage === 'billing'} onClick={() => setCurrentPage('billing')} />
-          <NavItem collapsed={isSidebarCollapsed} icon={User} label="My Profile" active={currentPage === 'profile'} onClick={() => setCurrentPage('profile')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Gift} label="Refer & Earn" active={currentPage === 'referral'} onClick={() => navigateTo('referral')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={Bell} label="Notifications" active={currentPage === 'notifications'} onClick={() => navigateTo('notifications')} badge={unreadNotifications} />
+          <NavItem collapsed={isSidebarCollapsed} icon={CreditCard} label="Premium Plans" active={currentPage === 'billing'} onClick={() => navigateTo('billing')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={UserIcon} label="My Profile" active={currentPage === 'profile'} onClick={() => navigateTo('profile')} />
+          <NavItem collapsed={isSidebarCollapsed} icon={SettingsIcon} label="Settings" active={currentPage === 'settings'} onClick={() => navigateTo('settings')} />
+          
           {CURRENT_USER.role === 'user' && ( 
-             <NavItem collapsed={isSidebarCollapsed} icon={Shield} label="Admin" active={currentPage === 'admin'} onClick={() => setCurrentPage('admin')} />
+             <NavItem collapsed={isSidebarCollapsed} icon={Shield} label="Admin" active={currentPage === 'admin'} onClick={() => navigateTo('admin')} />
           )}
         </nav>
 
@@ -178,8 +209,9 @@ const App = () => {
             <Heart className="text-rose-500 fill-rose-500" size={24} />
             <span className="text-lg font-bold font-serif">Love Pilot</span>
           </div>
-          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white">
+          <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="p-2 text-white relative">
             <Menu size={24} />
+            {unreadNotifications > 0 && <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>}
           </button>
         </div>
 
@@ -191,16 +223,26 @@ const App = () => {
               <button onClick={() => setMobileMenuOpen(false)}><LogOut className="rotate-180" size={24}/></button>
             </div>
             <div className="grid grid-cols-2 gap-4">
-               <button onClick={() => { setCurrentPage('dateplanner'); setMobileMenuOpen(false); }} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
+               <button onClick={() => navigateTo('referral')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2 border border-white/5">
+                  <Gift size={28} className="text-emerald-400" /> <span className="text-sm font-bold">Refer & Earn</span>
+               </button>
+               <button onClick={() => navigateTo('dateplanner')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
                   <Calendar size={28} className="text-rose-400" /> <span className="text-sm">Dates</span>
                </button>
-               <button onClick={() => { setCurrentPage('roster'); setMobileMenuOpen(false); }} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
+               <button onClick={() => navigateTo('roster')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
                   <Flame size={28} className="text-orange-400" /> <span className="text-sm">Roaster</span>
                </button>
-               <button onClick={() => { setCurrentPage('practice'); setMobileMenuOpen(false); }} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
+               <button onClick={() => navigateTo('practice')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
                   <Dumbbell size={28} className="text-blue-400" /> <span className="text-sm">Practice</span>
                </button>
-               <button onClick={() => { setCurrentPage('billing'); setMobileMenuOpen(false); }} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
+               <button onClick={() => navigateTo('notifications')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2 relative">
+                  <Bell size={28} className="text-yellow-400" /> <span className="text-sm">Alerts</span>
+                  {unreadNotifications > 0 && <span className="absolute top-4 right-8 w-3 h-3 bg-rose-500 rounded-full"></span>}
+               </button>
+               <button onClick={() => navigateTo('settings')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
+                  <SettingsIcon size={28} className="text-slate-400" /> <span className="text-sm">Settings</span>
+               </button>
+               <button onClick={() => navigateTo('billing')} className="p-4 bg-white/5 rounded-xl flex flex-col items-center gap-2">
                   <CreditCard size={28} className="text-green-400" /> <span className="text-sm">Plans</span>
                </button>
             </div>
@@ -219,10 +261,10 @@ const App = () => {
 
         {/* 3. MOBILE BOTTOM NAVIGATION (Fixed) */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 h-[80px] bg-[#1E293B] border-t border-white/5 flex items-start pt-2 px-2 z-40 pb-safe shadow-[0_-5px_20px_rgba(0,0,0,0.3)]">
-           <MobileTab icon={Heart} label="Discover" active={currentPage === 'discover'} onClick={() => setCurrentPage('discover')} />
-           <MobileTab icon={MessageCircle} label="Chats" active={currentPage === 'messages'} onClick={() => setCurrentPage('messages')} />
-           <MobileTab icon={Brain} label="Coach" active={currentPage === 'coach'} onClick={() => setCurrentPage('coach')} />
-           <MobileTab icon={Globe} label="Social" active={currentPage === 'social'} onClick={() => setCurrentPage('social')} />
+           <MobileTab icon={Heart} label="Discover" active={currentPage === 'discover'} onClick={() => navigateTo('discover')} />
+           <MobileTab icon={MessageCircle} label="Chats" active={currentPage === 'messages'} onClick={() => navigateTo('messages')} />
+           <MobileTab icon={Brain} label="Coach" active={currentPage === 'coach'} onClick={() => navigateTo('coach')} />
+           <MobileTab icon={Globe} label="Social" active={currentPage === 'social'} onClick={() => navigateTo('social')} />
         </div>
 
       </main>

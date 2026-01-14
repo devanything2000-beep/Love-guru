@@ -1,20 +1,19 @@
 import React, { useState, useRef } from 'react';
 import { DISCOVER_PROFILES } from '../constants';
-import { Heart, MapPin, Sparkles, ChevronRight, ChevronLeft } from 'lucide-react';
+import { Heart, MapPin, Sparkles, ChevronRight, ChevronLeft, MoreHorizontal } from 'lucide-react';
 import { User } from '../types';
 import { VerifiedBadge } from '../components/UIComponents';
 
 interface DiscoverProps {
   onToggleLike: (user: User) => void;
   isLiked: (userId: string) => boolean;
+  onViewProfile: (user: User) => void;
 }
 
-export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => {
+export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked, onViewProfile }) => {
   const [profiles, setProfiles] = useState(DISCOVER_PROFILES);
   const [currentIndex, setCurrentIndex] = useState(0);
-  // showDetails is kept in state but not actively used via click anymore, 
-  // ensuring we stick to the user's request for click-to-like behavior.
-  const [showDetails, setShowDetails] = useState(false); 
+  const [showDetails, setShowDetails] = useState(false);
   
   // Swipe State
   const [drag, setDrag] = useState({ x: 0, y: 0 });
@@ -38,14 +37,11 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
   };
 
   const handleNext = () => {
-    // Default manual animation (slide left)
     setExitVector({ x: -window.innerWidth, y: 0 });
     setTimeout(goToNextProfile, 300);
   };
 
   const handlePrev = () => {
-    // Default manual animation (slide right)
-    setShowDetails(false);
     if (currentIndex > 0) {
       setCurrentIndex(prev => prev - 1);
     } else {
@@ -54,7 +50,6 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
   };
 
   const handleCardClick = () => {
-    // Request: Click to Like, Second Click to Dislike
     if (!isDragging && Math.abs(drag.x) < 5 && Math.abs(drag.y) < 5) {
         onToggleLike(currentProfile);
     }
@@ -85,19 +80,15 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
     setIsDragging(false);
 
     const threshold = 100;
-    // Check if swipe distance is enough
     if (Math.abs(drag.x) > threshold || Math.abs(drag.y) > threshold) {
-        // Fly out in the direction of the swipe
-        const multiplier = 4; // Fly far off screen
+        const multiplier = 4;
         setExitVector({ x: drag.x * multiplier, y: drag.y * multiplier });
         setTimeout(goToNextProfile, 300);
     } else {
-        // Reset (Spring back)
         setDrag({ x: 0, y: 0 });
     }
   };
 
-  // --- DYNAMIC STYLES ---
   const getCardStyle = () => {
     if (exitVector) {
         return {
@@ -116,7 +107,7 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
     return {
         transform: 'translate(0, 0) rotate(0deg)',
         transition: 'transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-        cursor: 'pointer' // Changed to pointer to indicate clickability
+        cursor: 'pointer'
     };
   };
 
@@ -125,7 +116,6 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
   return (
     <div className="h-full flex flex-col items-center justify-center max-w-md mx-auto w-full relative pb-4 overflow-hidden select-none">
       
-      {/* Top Header */}
       {!showDetails && (
         <div className="w-full flex justify-between items-center mb-4 px-2">
           <h2 className="text-2xl font-serif font-bold text-white">Discover</h2>
@@ -135,15 +125,12 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
         </div>
       )}
       
-      {/* Swipe Card Area */}
       <div className="relative w-full aspect-[3/4] md:aspect-[3/4.5] max-h-[75vh] group">
         
-        {/* Left Nav Hint (Hidden on Mobile) */}
         <button onClick={(e) => { e.stopPropagation(); handlePrev(); }} className="absolute left-[-50px] top-1/2 hidden md:block text-white/20 hover:text-white transition">
             <ChevronLeft size={40} />
         </button>
 
-        {/* Right Nav Button (Floating on Right Side) */}
         <button 
           onClick={(e) => { e.stopPropagation(); handleNext(); }} 
           className="absolute -right-4 md:-right-12 top-1/2 transform -translate-y-1/2 z-30 p-3 bg-white/10 backdrop-blur-md rounded-full text-white hover:bg-white/20 active:scale-95 transition shadow-lg"
@@ -151,10 +138,8 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
             <ChevronRight size={32} />
         </button>
 
-        {/* Background Card Effect (Static) */}
         {!showDetails && <div className="absolute top-4 left-4 right-4 bottom-0 bg-white/5 rounded-3xl z-0 transform translate-y-2 scale-95 border border-white/5"></div>}
         
-        {/* Main Card (Draggable) */}
         <div 
           onClick={handleCardClick}
           onMouseDown={handlePointerDown}
@@ -170,8 +155,6 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
             ${!showDetails ? '' : 'cursor-default'}
           `}
         >
-          
-          {/* Heart Overlay (Visible when Liked) */}
           {!showDetails && (
             <div className={`absolute inset-0 z-20 flex items-center justify-center pointer-events-none transition-opacity duration-300 ${liked ? 'opacity-100' : 'opacity-0'}`}>
                 <div className="bg-rose-500/20 p-8 rounded-full backdrop-blur-sm animate-fade-in scale-125">
@@ -180,7 +163,6 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
             </div>
           )}
 
-          {/* Standard Card View */}
           <div className="relative flex-1 pointer-events-none">
             <img 
             src={currentProfile.avatar} 
@@ -208,29 +190,34 @@ export const Discover: React.FC<DiscoverProps> = ({ onToggleLike, isLiked }) => 
             </div>
           </div>
 
-          <div className="p-5 pt-0 bg-[#1E293B] pointer-events-none">
-            <p className="text-slate-300 text-sm leading-relaxed line-clamp-2 mb-4">
+          <div className="p-5 pt-0 bg-[#1E293B] pointer-events-auto">
+            <p className="text-slate-300 text-sm leading-relaxed line-clamp-2 mb-4 pointer-events-none">
                 "{currentProfile.bio}"
             </p>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-wrap gap-2 pointer-events-none">
                 {currentProfile.interests.slice(0, 3).map(tag => (
                 <span key={tag} className="bg-white/5 border border-white/10 px-3 py-1 rounded-full text-xs text-slate-300">
                     {tag}
                 </span>
                 ))}
             </div>
-            <div className="mt-4 text-center text-[10px] text-white/30 uppercase tracking-widest">
-                Tap to Like • Slide to Next
+            
+            <div className="flex items-center justify-between mt-4">
+               <div className="text-[10px] text-white/30 uppercase tracking-widest pointer-events-none">
+                  Tap to Like • Slide to Next
+               </div>
+               <button 
+                  onClick={(e) => { e.stopPropagation(); onViewProfile(currentProfile); }}
+                  className="p-2 text-white/50 hover:text-white bg-white/5 rounded-full"
+               >
+                  <MoreHorizontal size={20} />
+               </button>
             </div>
           </div>
         </div>
-
       </div>
 
-      {/* Action Buttons (Fixed Bottom) */}
       <div className="flex items-center justify-center gap-8 mt-6 w-full px-8 z-20">
-        
-        {/* Like Button */}
         <button 
           onClick={(e) => {
              e.stopPropagation();

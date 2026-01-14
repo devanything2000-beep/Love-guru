@@ -1,28 +1,31 @@
-import { User, Post, ChatSession, CoachScenario, Fetcher, Log, Plan } from './types';
+
+import { User, Post, ChatSession, CoachScenario, Fetcher, Log, Plan, Notification, ReferralStat, ReferralTier, SaaSMetrics, FunnelStage } from './types';
 
 export const SYSTEM_PROMPTS = {
   loveCoach: `You are 'Love Pilot', a sophisticated Indian Dating Coach. 
   Language: Hinglish (Natural mix of Hindi and English).
-  Context: The user will provide their Mood, Location, Relationship Stage, and a specific Obstacle (e.g., Family Pressure, Society fear).
+  Context: The user will provide their Mood, Location, Relationship Stage, and a specific Obstacle.
   Task: Provide a specific, psychology-backed solution.
   Structure:
   1. 🧠 **Psychology**: Why is this happening?
   2. 🗣️ **Script**: Exact words to say in Hindi/English.
-  3. 🚀 **Action**: Immediate step to take.
-  Keep it encouraging but realistic.`,
+  3. 🚀 **Action**: Immediate step to take.`,
   
-  practiceMode: `Roleplay a dating scenario. You are the date (girl/boy based on context). 
-  React realistically. If user is charming, respond well. If creepy, block/ignore.`,
+  practiceMode: `Roleplay a dating scenario. You are the date. React realistically.`,
 
   datePlanner: `You are an expert City Guide & Romantic Planner for India.
-  User will give City, Vibe, and Budget.
-  Suggest 3 specific places/itineraries.
-  Include "Safety Rating" and "Romance Score" for each.`,
+  Suggest 3 specific places/itineraries with "Safety Rating" and "Romance Score".`,
 
-  profileRoaster: `You are a brutal but helpful Tinder/Bumble profile reviewer.
-  Analyze the bio/interests.
-  Give a "Red Flag Score" out of 10.
-  Give 3 tips to improve matches.`
+  profileRoaster: `Brutal but helpful Tinder/Bumble profile reviewer.
+  Give a "Red Flag Score" out of 10 and 3 tips to improve matches.`,
+
+  messageHelper: `You are a smooth conversationalist wingman.
+  Generate 3 short, engaging reply options based on the chat context.
+  Tones: Cute, Funny, Romantic, or Ice Breaker.
+  Keep it Hinglish and casual.`,
+
+  captionGenerator: `Generate 3 engaging Instagram captions for a photo description.
+  Include trending hashtags for India.`
 };
 
 export const CURRENT_USER: User = {
@@ -38,7 +41,17 @@ export const CURRENT_USER: User = {
   photos: [],
   interests: ['Music', 'Travel', 'Chai', 'Coding'],
   isOnline: true,
-  lastActive: 'Now'
+  lastActive: 'Now',
+  referralCode: 'LOVE-RHL-24',
+  referralCount: 12,
+  
+  // --- New Logic Simulation ---
+  subscriptionStatus: 'trial', 
+  referralsThisMonth: 1, // User has done 1 out of 2 referrals
+  premiumUntil: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000).toISOString(), // 6 Days left in trial
+  
+  referralEarnings: 6000,
+  referralLevel: 'Silver',
 };
 
 export const DISCOVER_PROFILES: User[] = [
@@ -52,11 +65,18 @@ export const DISCOVER_PROFILES: User[] = [
     role: 'user',
     plan: 'Free',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=400&h=400&fit=crop',
-    photos: ['https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400'],
+    photos: [
+      'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?w=400',
+      'https://images.unsplash.com/photo-1517841905240-472988babdf9?w=400',
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400'
+    ],
     interests: ['Dancing', 'Street Food', 'Bollywood'],
     matchPercentage: 92,
     isOnline: true,
-    lastActive: '5m ago'
+    lastActive: '5m ago',
+    redFlags: ['Takes 3 days to reply', 'Obsessed with ex'],
+    greenFlags: ['Loves dogs', 'Independent', 'Good listener'],
+    referralsThisMonth: 0
   },
   {
     id: 'u-2',
@@ -72,7 +92,8 @@ export const DISCOVER_PROFILES: User[] = [
     interests: ['Tech', 'Yoga', 'Reading'],
     matchPercentage: 85,
     isOnline: false,
-    lastActive: '2h ago'
+    lastActive: '2h ago',
+    referralsThisMonth: 0
   },
   {
     id: 'u-3',
@@ -88,8 +109,27 @@ export const DISCOVER_PROFILES: User[] = [
     interests: ['Painting', 'Cafes', 'Cats'],
     matchPercentage: 78,
     isOnline: true,
-    lastActive: 'Now'
+    lastActive: 'Now',
+    referralsThisMonth: 0
   }
+];
+
+export const NOTIFICATIONS: Notification[] = [
+  // Matches
+  { id: 'n-1', type: 'match', title: 'It\'s a Match!', message: 'You and Priya matched. Say hi!', timestamp: '2m ago', isRead: false },
+  { id: 'n-10', type: 'match', title: 'New Like', message: 'Someone nearby liked your profile.', timestamp: '5m ago', isRead: false },
+  
+  // Messages
+  { id: 'n-2', type: 'message', title: 'New Message', message: 'Anjali sent you a photo.', timestamp: '1h ago', isRead: true },
+  { id: 'n-11', type: 'message', title: 'Priya is typing...', message: 'Priya sent a voice note.', timestamp: '10m ago', isRead: false },
+  
+  // System
+  { id: 'n-3', type: 'system', title: 'Welcome to Love Pilot', message: 'Complete your profile to get more matches.', timestamp: '1d ago', isRead: true },
+  { id: 'n-12', type: 'system', title: 'Profile Verified', message: 'Your photo verification was successful.', timestamp: '2h ago', isRead: true },
+  
+  // Boost
+  { id: 'n-4', type: 'boost', title: 'Boost Expired', message: 'Your profile boost has ended.', timestamp: '2d ago', isRead: true },
+  { id: 'n-13', type: 'boost', title: 'Super Boost Active', message: 'You are top profile in Mumbai for 30m.', timestamp: 'Just now', isRead: false },
 ];
 
 export const SOCIAL_POSTS: Post[] = [
@@ -159,18 +199,13 @@ export const PRACTICE_SCENARIOS: CoachScenario[] = [
 ];
 
 export const FETCHERS: Fetcher[] = [
-  { id: 'f-1', name: 'SEO Wizard', description: 'Optimizes your content for search engines to boost visibility.', category: 'SEO', status: 'active', costPerRun: 5 },
-  { id: 'f-2', name: 'Lead Gen Pro', description: 'Finds verified email addresses from LinkedIn profiles.', category: 'Leads', status: 'active', costPerRun: 10 },
-  { id: 'f-3', name: 'Code Reviewer', description: 'Automatically checks your PRs for common bugs and style issues.', category: 'Coding', status: 'inactive', costPerRun: 0 },
-  { id: 'f-4', name: 'Content Spinner', description: 'Rewrites articles to make them unique while retaining meaning.', category: 'Content', status: 'active', costPerRun: 2 },
-  { id: 'f-5', name: 'Social Scheduler', description: 'Auto-posts content to Twitter and LinkedIn at optimal times.', category: 'Automation', status: 'active', costPerRun: 4 },
+  { id: 'f-1', name: 'SEO Wizard', description: 'Optimizes content.', category: 'SEO', status: 'active', costPerRun: 5 },
+  { id: 'f-2', name: 'Lead Gen Pro', description: 'Finds emails.', category: 'Leads', status: 'active', costPerRun: 10 },
 ];
 
 export const RECENT_LOGS: Log[] = [
-  { id: 'l-1', fetcherName: 'SEO Wizard', timestamp: '2 mins ago', status: 'completed' },
-  { id: 'l-2', fetcherName: 'Lead Gen Pro', timestamp: '1 hour ago', status: 'failed' },
-  { id: 'l-3', fetcherName: 'Content Spinner', timestamp: '5 hours ago', status: 'completed' },
-  { id: 'l-4', fetcherName: 'Social Scheduler', timestamp: 'Yesterday', status: 'completed' },
+  { id: 'l-1', fetcherName: 'Message Helper', timestamp: '2 mins ago', status: 'completed' },
+  { id: 'l-2', fetcherName: 'Profile Analysis', timestamp: '1 hour ago', status: 'completed' },
 ];
 
 export const PLANS: Plan[] = [
@@ -198,4 +233,37 @@ export const PLANS: Plan[] = [
       features: ['Priority Likes', 'Profile Boost', 'Read Receipts', 'Advanced Coaching'],
       recommended: false
   }
+];
+
+export const REFERRAL_STATS: ReferralStat[] = [
+   { date: 'Mon', referrals: 45, revenue: 1200, fraudBlocked: 2 },
+   { date: 'Tue', referrals: 62, revenue: 1800, fraudBlocked: 5 },
+   { date: 'Wed', referrals: 58, revenue: 1650, fraudBlocked: 3 },
+   { date: 'Thu', referrals: 89, revenue: 2400, fraudBlocked: 8 },
+   { date: 'Fri', referrals: 102, revenue: 3100, fraudBlocked: 12 },
+   { date: 'Sat', referrals: 130, revenue: 4500, fraudBlocked: 6 },
+   { date: 'Sun', referrals: 145, revenue: 5200, fraudBlocked: 4 },
+];
+
+export const REFERRAL_TIERS: ReferralTier[] = [
+   { name: 'Bronze', minReferrals: 0, reward: '1 Week Premium', color: 'from-orange-700 to-orange-500' },
+   { name: 'Silver', minReferrals: 10, reward: '1 Month Premium + 5 Boosts', color: 'from-slate-400 to-slate-200' },
+   { name: 'Gold', minReferrals: 30, reward: 'Lifetime Premium + VIP', color: 'from-yellow-500 to-yellow-200' },
+];
+
+export const SAAS_METRICS: SaaSMetrics = {
+   mrr: 425000,
+   arr: 5100000,
+   churnRate: 4.2,
+   cac: 120, // Rupees per user
+   ltv: 850, // Rupees per user
+   activeTrials: 1240,
+   conversionRate: 18.5 // %
+};
+
+export const FUNNEL_DATA: FunnelStage[] = [
+   { name: 'Referral Clicks', value: 5000, fill: '#8884d8' },
+   { name: 'Signups', value: 2500, fill: '#83a6ed' },
+   { name: 'Trial Started', value: 1240, fill: '#8dd1e1' },
+   { name: 'Converted to Paid', value: 230, fill: '#82ca9d' },
 ];
