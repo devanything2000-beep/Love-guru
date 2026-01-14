@@ -1,0 +1,7 @@
+{
+  "name": "FlowFetcher AI",
+  "description": "Production-ready AI Automation & Fetcher Platform with Admin Panel, Marketplace, and Real-time Status tracking.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
