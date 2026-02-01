@@ -1,5 +1,4 @@
 
-
 export type UserRole = 'user' | 'admin';
 export type PlanType = 'Free' | 'Pro' | 'Premium';
 export type OnlineStatus = 'online' | 'offline' | 'busy';
@@ -59,11 +58,27 @@ export interface CoachSessionInput {
   confidence: string;
   obstacleCategory: string;
   obstacleDetail: string;
+  // Legacy context structure for compatibility
   context: {
     locationDetails: string;
     personality: string;
     surroundings: string;
-  }
+  };
+  // New detailed fields
+  detailedLocation?: {
+    country: string;
+    state: string;
+    district: string;
+    city: string;
+    pincode: string;
+  };
+  advancedContext?: {
+    userPersonality: string;
+    partnerPersonality: string;
+    timing: string;
+    company: string;
+    atmosphere: string;
+  };
 }
 
 // Structured Response from AI
@@ -190,4 +205,23 @@ export interface FunnelStage {
   name: string;
   value: number;
   fill: string;
+}
+
+// --- NEW VIDEO COACH TYPES ---
+
+export interface AvatarConfig {
+  gender: 'Male' | 'Female';
+  age: string;
+  style: string;
+  personality: 'Therapist' | 'Best Friend' | 'Strict Coach' | 'Romantic Partner';
+  voiceType: 'Soft' | 'Deep' | 'Energetic';
+  language: 'English' | 'Hindi' | 'Hinglish';
+  viewMode: 'Face' | 'Upper' | 'Full'; // New: Control body visibility
+  avatarId?: string; // New: To persist selected avatar image
+}
+
+export interface VideoCoachResponse {
+  text: string;
+  emotion: string; // e.g. 'happy', 'serious', 'thinking', 'empathetic'
+  psychologyTip?: string;
 }

@@ -1,21 +1,162 @@
-
 import React, { useState } from 'react';
-import { GlassCard } from '../components/UIComponents';
-import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie } from 'recharts';
-import { Users, DollarSign, Server, AlertTriangle, Gift, ShieldAlert, TrendingUp, UserCheck, Activity, Target, Zap, ArrowUpRight } from 'lucide-react';
-import { REFERRAL_STATS, SAAS_METRICS, FUNNEL_DATA } from '../constants';
-
-const revData = [
-  { name: 'Jan', revenue: 4000 },
-  { name: 'Feb', revenue: 3000 },
-  { name: 'Mar', revenue: 5000 },
-  { name: 'Apr', revenue: 7500 },
-  { name: 'May', revenue: 9000 },
-  { name: 'Jun', revenue: 12000 },
-];
+import { GlassCard, PrimaryButton } from '../components/UIComponents';
+import { AreaChart, Area, BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, PieChart, Pie, Legend } from 'recharts';
+import { Users, DollarSign, Server, AlertTriangle, Gift, ShieldAlert, TrendingUp, UserCheck, Activity, Target, Zap, ArrowUpRight, Database, Table, Cpu, Settings, PlayCircle, StopCircle, Plus, Shield } from 'lucide-react';
+import { REFERRAL_STATS, SAAS_METRICS, FUNNEL_DATA, FETCHERS, REVENUE_COMPARISON_DATA } from '../constants';
+import { Fetcher } from '../types';
 
 export const AdminPanel = () => {
-  const [activeTab, setActiveTab] = useState<'system' | 'growth'>('growth');
+  const [activeTab, setActiveTab] = useState<'schema' | 'fetchers' | 'analytics'>('analytics');
+  const [localFetchers, setLocalFetchers] = useState<Fetcher[]>(FETCHERS);
+
+  const toggleFetcherStatus = (id: string) => {
+      setLocalFetchers(prev => prev.map(f => f.id === id ? { ...f, status: f.status === 'active' ? 'inactive' : 'active' } : f));
+  };
+
+  const addFetcher = () => {
+      const newFetcher: Fetcher = {
+          id: `f-${Date.now()}`,
+          name: 'New Agent',
+          description: 'Automated task handler.',
+          category: 'Automation',
+          status: 'inactive',
+          costPerRun: 5
+      };
+      setLocalFetchers(prev => [...prev, newFetcher]);
+  };
+
+  // --- SUB-VIEWS ---
+
+  const SchemaView = () => (
+      <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+             <h3 className="text-xl font-bold flex items-center gap-2"><Database size={20} className="text-blue-400"/> Database Architect</h3>
+             <div className="flex gap-2">
+               <span className="text-xs bg-green-500/20 text-green-400 px-3 py-1.5 rounded-full border border-green-500/30 font-bold flex items-center gap-1">
+                 <Zap size={12}/> Optimization: Active
+               </span>
+               <button className="text-sm bg-white/10 hover:bg-white/20 px-3 py-1.5 rounded-lg border border-white/10">Export Schema</button>
+             </div>
+          </div>
+          
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+             {/* Users Table */}
+             <GlassCard className="relative overflow-hidden group">
+                <div className="flex items-center gap-2 mb-4 text-emerald-400 font-bold border-b border-white/10 pb-2">
+                   <Table size={18}/> Users Collection
+                </div>
+                <div className="absolute top-4 right-4 text-[10px] bg-emerald-500/10 text-emerald-300 px-2 py-0.5 rounded border border-emerald-500/20">
+                   Partitioned: Yearly
+                </div>
+                
+                <div className="space-y-2 text-sm font-mono text-white/70">
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>id</span> <span className="text-white/40">UUID (PK)</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>email</span> <span className="text-white/40">VARCHAR(255)</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>plan_type</span> <span className="text-white/40">ENUM('free','pro')</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>created_at</span> <span className="text-white/40">TIMESTAMP (IDX)</span></div>
+                </div>
+                <div className="mt-4 text-xs text-white/40 flex items-center gap-2 bg-black/20 p-2 rounded">
+                   <Database size={12} className="text-emerald-500"/> 
+                   <span>Shards: <span className="text-white">user_2024</span>, <span className="text-white">user_2025</span></span>
+                </div>
+             </GlassCard>
+
+             {/* Logs Table */}
+             <GlassCard className="relative overflow-hidden group">
+                <div className="flex items-center gap-2 mb-4 text-orange-400 font-bold border-b border-white/10 pb-2">
+                   <Table size={18}/> Logs Collection
+                </div>
+                 <div className="absolute top-4 right-4 text-[10px] bg-orange-500/10 text-orange-300 px-2 py-0.5 rounded border border-orange-500/20">
+                   Retention: 2 Years
+                </div>
+                <div className="space-y-2 text-sm font-mono text-white/70">
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>id</span> <span className="text-white/40">UUID (PK)</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>fetcher_id</span> <span className="text-white/40">UUID (FK)</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>input_payload</span> <span className="text-white/40">JSONB</span></div>
+                   <div className="flex justify-between p-2 bg-white/5 rounded hover:bg-white/10 transition"><span>timestamp</span> <span className="text-white/40">DATETIME (IDX)</span></div>
+                </div>
+                 <div className="mt-4 text-xs text-white/40 flex items-center gap-2 bg-black/20 p-2 rounded">
+                   <Server size={12} className="text-orange-500"/> 
+                   <span>Storage: <span className="text-white">Hot (2025)</span>, <span className="text-white/50">Cold (2024)</span></span>
+                </div>
+             </GlassCard>
+
+             {/* Relations Visual (Mock) */}
+             <GlassCard className="lg:col-span-2 h-48 flex items-center justify-center bg-black/20 border-dashed relative">
+                <div className="absolute top-3 left-3 text-xs font-bold text-white/30 uppercase tracking-widest">Topology</div>
+                <div className="flex items-center gap-8 opacity-70">
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 bg-emerald-900/40 border border-emerald-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                         <Users size={20} className="text-emerald-400"/>
+                      </div>
+                      <span className="text-[10px] font-mono text-emerald-400">Users (Primary)</span>
+                   </div>
+                   <div className="h-0.5 w-16 bg-white/20 relative">
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] text-white/40">1:N</div>
+                   </div>
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 bg-blue-900/40 border border-blue-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(59,130,246,0.2)]">
+                         <Cpu size={20} className="text-blue-400"/>
+                      </div>
+                      <span className="text-[10px] font-mono text-blue-400">Sessions</span>
+                   </div>
+                   <div className="h-0.5 w-16 bg-white/20 relative">
+                      <div className="absolute -top-1 left-1/2 -translate-x-1/2 text-[8px] text-white/40">1:N</div>
+                   </div>
+                   <div className="flex flex-col items-center gap-2">
+                      <div className="w-12 h-12 bg-orange-900/40 border border-orange-500 rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(249,115,22,0.2)]">
+                         <Activity size={20} className="text-orange-400"/>
+                      </div>
+                      <span className="text-[10px] font-mono text-orange-400">Logs</span>
+                   </div>
+                </div>
+             </GlassCard>
+          </div>
+      </div>
+  );
+
+  const FetcherView = () => (
+      <div className="space-y-6 animate-fade-in">
+          <div className="flex items-center justify-between">
+             <h3 className="text-xl font-bold flex items-center gap-2"><Cpu size={20} className="text-purple-400"/> Fetcher Registry</h3>
+             <PrimaryButton onClick={addFetcher} className="px-4 py-2 text-sm flex items-center gap-2">
+                 <Plus size={16}/> Deploy New Agent
+             </PrimaryButton>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4">
+              {localFetchers.map(f => (
+                  <GlassCard key={f.id} className="flex flex-col md:flex-row items-center justify-between gap-4">
+                      <div className="flex items-center gap-4">
+                          <div className={`p-3 rounded-xl ${f.status === 'active' ? 'bg-green-500/20 text-green-400' : 'bg-slate-700/50 text-slate-500'}`}>
+                              <Cpu size={24}/>
+                          </div>
+                          <div>
+                              <h4 className="font-bold text-lg">{f.name}</h4>
+                              <p className="text-sm text-white/50">{f.description}</p>
+                              <div className="flex gap-2 mt-1">
+                                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/60">{f.category}</span>
+                                  <span className="text-[10px] bg-white/10 px-2 py-0.5 rounded text-white/60">₹{f.costPerRun}/run</span>
+                              </div>
+                          </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                          <button className="p-2 bg-white/5 hover:bg-white/10 rounded-lg text-white/50 hover:text-white transition">
+                              <Settings size={20}/>
+                          </button>
+                          <button 
+                              onClick={() => toggleFetcherStatus(f.id)}
+                              className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold text-sm transition ${f.status === 'active' ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-green-500/20 text-green-400 border border-green-500/30'}`}
+                          >
+                              {f.status === 'active' ? <><StopCircle size={16}/> Deactivate</> : <><PlayCircle size={16}/> Activate</>}
+                          </button>
+                      </div>
+                  </GlassCard>
+              ))}
+          </div>
+      </div>
+  );
 
   return (
     <div className="space-y-8 animate-fade-in pb-10">
@@ -24,71 +165,41 @@ export const AdminPanel = () => {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
            <h1 className="text-3xl font-bold text-white flex items-center gap-2">
-             <span className="bg-gradient-to-r from-red-600 to-orange-600 text-xs px-2 py-1 rounded shadow-lg">SUPER ADMIN</span>
-             {activeTab === 'system' ? 'System Overview' : 'Growth & Revenue Engine'}
+             <span className="bg-gradient-to-r from-red-600 to-orange-600 text-xs px-2 py-1 rounded shadow-lg flex items-center gap-1"><Shield size={10}/> SYSTEM ARCHITECT</span>
            </h1>
            <p className="text-white/50 text-sm mt-1">
-              {activeTab === 'system' ? 'Monitoring server load & user growth.' : 'Managing unit economics: CAC, LTV & Monetization.'}
+              Data Schema, AI Agents, and 2-Year Growth Analytics.
            </p>
         </div>
         
         <div className="flex bg-white/5 rounded-xl p-1 border border-white/10">
            <button 
-              onClick={() => setActiveTab('growth')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'growth' ? 'bg-emerald-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
+              onClick={() => setActiveTab('analytics')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'analytics' ? 'bg-emerald-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
            >
-              <TrendingUp size={16} /> Growth Engine
+              <TrendingUp size={16} /> Data
            </button>
            <button 
-              onClick={() => setActiveTab('system')}
-              className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'system' ? 'bg-white/20 text-white' : 'text-white/50 hover:text-white'}`}
+              onClick={() => setActiveTab('fetchers')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'fetchers' ? 'bg-purple-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
            >
-              <Activity size={16} /> System
+              <Cpu size={16} /> Fetchers
+           </button>
+           <button 
+              onClick={() => setActiveTab('schema')}
+              className={`px-4 py-2 rounded-lg text-sm font-bold transition flex items-center gap-2 ${activeTab === 'schema' ? 'bg-blue-600 text-white shadow-lg' : 'text-white/50 hover:text-white'}`}
+           >
+              <Database size={16} /> Schema
            </button>
         </div>
       </div>
 
-      {activeTab === 'system' ? (
-        // --- SYSTEM VIEW ---
-        <>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {[
-              { label: 'Total Revenue', val: '₹4.2L', icon: DollarSign, color: 'text-green-400' },
-              { label: 'Active Users', val: '1,203', icon: Users, color: 'text-blue-400' },
-              { label: 'Server Load', val: '24%', icon: Server, color: 'text-orange-400' },
-              { label: 'Errors (24h)', val: '2', icon: AlertTriangle, color: 'text-red-400' },
-            ].map((stat, i) => (
-              <GlassCard key={i} className="p-4 flex items-center justify-between">
-                 <div>
-                   <p className="text-xs text-white/50 uppercase font-bold">{stat.label}</p>
-                   <h3 className="text-2xl font-bold mt-1">{stat.val}</h3>
-                 </div>
-                 <stat.icon className={`${stat.color} opacity-80`} size={28} />
-              </GlassCard>
-            ))}
-          </div>
-
-          <GlassCard className="h-[350px]">
-            <h3 className="text-lg font-bold mb-4">Revenue Growth (6 Months)</h3>
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={revData}>
-                <defs>
-                  <linearGradient id="colorRev" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
-                    <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <XAxis dataKey="name" stroke="#ffffff40" />
-                <YAxis stroke="#ffffff40" />
-                <Tooltip contentStyle={{backgroundColor: '#000', borderRadius: '8px', border: '1px solid #333'}} />
-                <Area type="monotone" dataKey="revenue" stroke="#10B981" fillOpacity={1} fill="url(#colorRev)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </GlassCard>
-        </>
-      ) : (
-        // --- GROWTH & REVENUE ENGINE (NEW) ---
-        <>
+      {activeTab === 'schema' && <SchemaView />}
+      {activeTab === 'fetchers' && <FetcherView />}
+      
+      {activeTab === 'analytics' && (
+        // --- GROWTH & REVENUE ENGINE ---
+        <div className="animate-fade-in space-y-8">
            {/* Unit Economics Row */}
            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <GlassCard className="p-4 relative overflow-hidden group">
@@ -121,27 +232,31 @@ export const AdminPanel = () => {
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-             {/* Conversion Funnel */}
+             {/* 2-YEAR REVENUE COMPARISON */}
              <GlassCard className="lg:col-span-2 h-[400px]">
                 <h3 className="text-lg font-bold mb-1 flex items-center gap-2">
-                   <TrendingUp size={18} className="text-blue-400"/> Acquisition Funnel
+                   <TrendingUp size={18} className="text-emerald-400"/> Revenue Growth (2024 vs 2025)
                 </h3>
-                <p className="text-xs text-white/50 mb-6">Referral Traffic → Paid Conversion</p>
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={FUNNEL_DATA} layout="vertical" margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-                    <XAxis type="number" stroke="#ffffff40" hide />
-                    <YAxis dataKey="name" type="category" stroke="#ffffff80" width={100} tick={{fontSize: 12}} />
-                    <Tooltip 
-                      contentStyle={{ backgroundColor: '#1a0b2e', border: '1px solid rgba(255,255,255,0.2)', borderRadius: '8px' }}
-                      itemStyle={{ color: '#fff' }}
-                      cursor={{fill: 'rgba(255,255,255,0.05)'}}
-                    />
-                    <Bar dataKey="value" barSize={30} radius={[0, 4, 4, 0]}>
-                       {FUNNEL_DATA.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.fill} />
-                       ))}
-                    </Bar>
-                  </BarChart>
+                <p className="text-xs text-white/50 mb-6">Year-over-Year Comparison</p>
+                <ResponsiveContainer width="100%" height="90%">
+                  <AreaChart data={REVENUE_COMPARISON_DATA}>
+                    <defs>
+                      <linearGradient id="color2025" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#10B981" stopOpacity={0.8}/>
+                        <stop offset="95%" stopColor="#10B981" stopOpacity={0}/>
+                      </linearGradient>
+                      <linearGradient id="color2024" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor="#6366f1" stopOpacity={0.3}/>
+                        <stop offset="95%" stopColor="#6366f1" stopOpacity={0}/>
+                      </linearGradient>
+                    </defs>
+                    <XAxis dataKey="month" stroke="#ffffff40" />
+                    <YAxis stroke="#ffffff40" />
+                    <Tooltip contentStyle={{backgroundColor: '#000', borderRadius: '8px', border: '1px solid #333'}} />
+                    <Legend />
+                    <Area type="monotone" dataKey="year2025" name="Current Year (2025)" stroke="#10B981" fillOpacity={1} fill="url(#color2025)" />
+                    <Area type="monotone" dataKey="year2024" name="Previous Year (2024)" stroke="#6366f1" fillOpacity={1} fill="url(#color2024)" />
+                  </AreaChart>
                 </ResponsiveContainer>
              </GlassCard>
 
@@ -164,43 +279,7 @@ export const AdminPanel = () => {
                 </div>
              </GlassCard>
           </div>
-
-          {/* Leaderboard Table (Existing) */}
-          <GlassCard className="h-[350px] overflow-hidden flex flex-col">
-             <h3 className="text-lg font-bold mb-4">Top Referrers (Acquisition Source)</h3>
-             <div className="overflow-y-auto custom-scrollbar flex-1">
-                <table className="w-full text-left">
-                   <thead className="sticky top-0 bg-[#1E293B] z-10">
-                      <tr className="text-white/40 text-xs uppercase border-b border-white/10">
-                         <th className="p-3">User</th>
-                         <th className="p-3">Invites</th>
-                         <th className="p-3">Revenue Generated</th>
-                         <th className="p-3 text-right">LTV Contribution</th>
-                      </tr>
-                   </thead>
-                   <tbody className="text-sm">
-                      {[
-                         { name: 'Priya S.', invites: 145, rev: '₹12k', ltv: 'High' },
-                         { name: 'Rahul K.', invites: 98, rev: '₹8k', ltv: 'Medium' },
-                         { name: 'Bot_99', invites: 500, rev: '₹0', ltv: 'Zero (Fraud)' },
-                         { name: 'Anjali V.', invites: 45, rev: '₹4k', ltv: 'Medium' },
-                      ].map((u, i) => (
-                         <tr key={i} className="border-b border-white/5 hover:bg-white/5">
-                            <td className="p-3 font-bold">{u.name}</td>
-                            <td className="p-3">{u.invites}</td>
-                            <td className="p-3 text-green-400">{u.rev}</td>
-                            <td className="p-3 text-right">
-                               <span className={`px-2 py-1 rounded text-xs ${u.ltv.includes('High') ? 'bg-green-500/20 text-green-400' : u.ltv.includes('Fraud') ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
-                                  {u.ltv}
-                               </span>
-                            </td>
-                         </tr>
-                      ))}
-                   </tbody>
-                </table>
-             </div>
-          </GlassCard>
-        </>
+        </div>
       )}
     </div>
   );

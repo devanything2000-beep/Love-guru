@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Globe, Brain, Dumbbell, User as UserIcon, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Calendar, Flame, Menu, Bell, Settings as SettingsIcon, Gift, Zap, LayoutDashboard, ShoppingBag, X, Clock } from 'lucide-react';
+import { Heart, MessageCircle, Globe, Brain, Dumbbell, User as UserIcon, Shield, CreditCard, LogOut, ChevronLeft, ChevronRight, Calendar, Flame, Menu, Bell, Settings as SettingsIcon, Gift, Zap, LayoutDashboard, ShoppingBag, X, Clock, Server, Database } from 'lucide-react';
 import { Discover } from './pages/Discover';
 import { SocialHub } from './pages/SocialHub';
 import { LoveCoach } from './pages/LoveCoach';
@@ -68,7 +68,7 @@ const MobileTab = ({ icon: Icon, label, active, onClick, badge }: any) => (
   </button>
 );
 
-export default function App() {
+export const App = () => {
   const [isOnboarded, setIsOnboarded] = useState(false); // Default to false to show Onboarding first for demo
   const [currentUser, setCurrentUser] = useState<User>(DEFAULT_USER);
   
@@ -84,7 +84,7 @@ export default function App() {
   const unreadNotifications = NOTIFICATIONS.filter(n => !n.isRead).length;
 
   // Global Countdown Logic
-  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0 });
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
   
   useEffect(() => {
      if (!CURRENT_USER.premiumUntil) return;
@@ -96,16 +96,26 @@ export default function App() {
               days: Math.floor(diff / (1000 * 60 * 60 * 24)),
               hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
               minutes: Math.floor((diff / 1000 / 60) % 60),
+              seconds: Math.floor((diff / 1000) % 60),
            });
         } else {
-           setTimeLeft({ days: 0, hours: 0, minutes: 0 });
+           setTimeLeft({ days: 0, hours: 0, minutes: 0, seconds: 0 });
         }
      };
      
      calculate();
-     const timer = setInterval(calculate, 60000); // update every minute
+     const timer = setInterval(calculate, 1000); // update every second
      return () => clearInterval(timer);
   }, []);
+
+  // --- NAVIGATION HANDLER (Fixes Overlay Issues) ---
+  const handleNavigate = (page: string) => {
+    setActivePage(page);
+    setViewingProfile(null); // Reset profile view
+    setSelectedFetcher(null); // Reset fetcher view
+    setIsMobileMenuOpen(false); // Close mobile menu
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   const handleToggleLike = (user: User) => {
     setLikedProfiles(prev => {
@@ -138,12 +148,14 @@ export default function App() {
   const isLiked = (userId: string) => likedProfiles.has(userId);
 
   const renderContent = () => {
+    // Only show profile detail if specifically in discover flow or explicitly routed, 
+    // but handled by state clearing in handleNavigate to avoid persistent overlay.
     if (viewingProfile) {
       return <ProfileDetail user={viewingProfile} onBack={() => setViewingProfile(null)} />;
     }
 
     if (activePage === 'run-fetcher' && selectedFetcher) {
-      return <RunFetcher fetcher={selectedFetcher} onBack={() => setActivePage('marketplace')} />;
+      return <RunFetcher fetcher={selectedFetcher} onBack={() => handleNavigate('marketplace')} />;
     }
 
     switch (activePage) {
@@ -158,7 +170,7 @@ export default function App() {
       case 'date-planner': return <DatePlanner />;
       case 'roster': return <ProfileRoster />;
       case 'notifications': return <Notifications />;
-      case 'settings': return <Settings onNavigate={setActivePage} />;
+      case 'settings': return <Settings onNavigate={handleNavigate} currentUser={currentUser} onUpdateUser={setCurrentUser} />;
       case 'referral': return <Referral />;
       default: return <Discover onToggleLike={handleToggleLike} isLiked={isLiked} onViewProfile={setViewingProfile} />;
     }
@@ -191,21 +203,25 @@ export default function App() {
            
            <div className="flex-1 overflow-y-auto p-4 space-y-2">
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 px-2">Apps</div>
-              <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => {setActivePage('discover'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => {setActivePage('social'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => {setActivePage('messages'); setIsMobileMenuOpen(false);}} badge={unreadMessages > 0 ? unreadMessages : null} />
+              <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => handleNavigate('discover')} />
+              <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => handleNavigate('social')} />
+              <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => handleNavigate('messages')} badge={unreadMessages > 0 ? unreadMessages : null} />
               
               <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-2">AI Tools</div>
-              <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => {setActivePage('coach'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => {setActivePage('practice'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => {setActivePage('date-planner'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => {setActivePage('roster'); setIsMobileMenuOpen(false);}} />
+              <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => handleNavigate('coach')} />
+              <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => handleNavigate('practice')} />
+              <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => handleNavigate('date-planner')} />
+              <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => handleNavigate('roster')} />
 
-              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-2">Growth</div>
-              <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => {setActivePage('marketplace'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => {setActivePage('referral'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => {setActivePage('billing'); setIsMobileMenuOpen(false);}} />
-              <NavItem icon={SettingsIcon} label="Settings" active={activePage === 'settings'} onClick={() => {setActivePage('settings'); setIsMobileMenuOpen(false);}} />
+              {/* Only Show System Architect if Admin */}
+              <div className="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 mt-6 px-2">System</div>
+              {currentUser.role === 'admin' && (
+                 <NavItem icon={Database} label="System Architect" active={activePage === 'admin'} onClick={() => handleNavigate('admin')} />
+              )}
+              <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => handleNavigate('marketplace')} />
+              <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => handleNavigate('referral')} />
+              <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => handleNavigate('billing')} />
+              <NavItem icon={SettingsIcon} label="Settings" active={activePage === 'settings'} onClick={() => handleNavigate('settings')} />
            </div>
         </div>
       )}
@@ -232,25 +248,29 @@ export default function App() {
         <div className="flex-1 overflow-y-auto px-3 space-y-2 custom-scrollbar">
           <div className={`px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>Main</div>
           
-          <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => setActivePage('discover')} collapsed={collapsed} />
-          <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => setActivePage('social')} collapsed={collapsed} badge="New" />
-          <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => setActivePage('messages')} collapsed={collapsed} badge={unreadMessages > 0 ? unreadMessages : null} />
+          <NavItem icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => handleNavigate('discover')} collapsed={collapsed} />
+          <NavItem icon={Globe} label="Social Hub" active={activePage === 'social'} onClick={() => handleNavigate('social')} collapsed={collapsed} badge="New" />
+          <NavItem icon={MessageCircle} label="Messages" active={activePage === 'messages'} onClick={() => handleNavigate('messages')} collapsed={collapsed} badge={unreadMessages > 0 ? unreadMessages : null} />
           
           <div className={`mt-6 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>AI Tools</div>
-          <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => setActivePage('coach')} collapsed={collapsed} />
-          <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => setActivePage('practice')} collapsed={collapsed} />
-          <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => setActivePage('date-planner')} collapsed={collapsed} />
-          <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => setActivePage('roster')} collapsed={collapsed} />
+          <NavItem icon={Brain} label="Love Coach" active={activePage === 'coach'} onClick={() => handleNavigate('coach')} collapsed={collapsed} />
+          <NavItem icon={Dumbbell} label="Practice Mode" active={activePage === 'practice'} onClick={() => handleNavigate('practice')} collapsed={collapsed} />
+          <NavItem icon={Calendar} label="Date Planner" active={activePage === 'date-planner'} onClick={() => handleNavigate('date-planner')} collapsed={collapsed} />
+          <NavItem icon={Flame} label="Profile Roaster" active={activePage === 'roster'} onClick={() => handleNavigate('roster')} collapsed={collapsed} />
 
-          <div className={`mt-6 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>Growth</div>
-          <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => setActivePage('marketplace')} collapsed={collapsed} />
-          <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => setActivePage('referral')} collapsed={collapsed} />
-          <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => setActivePage('billing')} collapsed={collapsed} />
+          <div className={`mt-6 px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-wider ${collapsed ? 'hidden' : 'block'}`}>System</div>
+          {/* Only Show System Architect if Admin */}
+          {currentUser.role === 'admin' && (
+             <NavItem icon={Database} label="System Architect" active={activePage === 'admin'} onClick={() => handleNavigate('admin')} collapsed={collapsed} />
+          )}
+          <NavItem icon={ShoppingBag} label="Marketplace" active={activePage === 'marketplace'} onClick={() => handleNavigate('marketplace')} collapsed={collapsed} />
+          <NavItem icon={Gift} label="Refer & Earn" active={activePage === 'referral'} onClick={() => handleNavigate('referral')} collapsed={collapsed} />
+          <NavItem icon={CreditCard} label="Billing" active={activePage === 'billing'} onClick={() => handleNavigate('billing')} collapsed={collapsed} />
         </div>
 
         {/* User Profile Footer */}
         <div className="p-4 border-t border-white/5">
-          <div className={`flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition cursor-pointer ${collapsed ? 'justify-center' : ''}`} onClick={() => setActivePage('settings')}>
+          <div className={`flex items-center gap-3 p-2 rounded-xl hover:bg-white/5 transition cursor-pointer ${collapsed ? 'justify-center' : ''}`} onClick={() => handleNavigate('settings')}>
             <div className="relative">
                <img src={currentUser.avatar} alt="User" className="w-10 h-10 rounded-full border-2 border-slate-700" />
                <StatusBadge status="online" />
@@ -273,8 +293,10 @@ export default function App() {
         {timeLeft.days >= 0 && (
             <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-rose-600 text-white text-[10px] md:text-xs font-bold py-1.5 px-4 text-center tracking-wide flex items-center justify-center gap-2 z-40 relative shadow-md">
                 <Clock size={12} className="animate-pulse" />
-                <span>BONUS: 6 Days Free Premium Fetcher Use Time Remaining: </span>
-                <span className="font-mono bg-black/20 px-1.5 rounded border border-white/10">{timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m</span>
+                <span>New User: 6 Days Free Premium Fetcher Use For Limited Time: </span>
+                <span className="font-mono bg-black/20 px-1.5 rounded border border-white/10 w-[140px] text-center inline-block">
+                    {timeLeft.days}d {timeLeft.hours}h {timeLeft.minutes}m {timeLeft.seconds}s
+                </span>
             </div>
         )}
 
@@ -285,7 +307,7 @@ export default function App() {
              <span className="font-bold text-lg font-serif">Love Pilot</span>
            </div>
            <div className="flex items-center gap-4">
-              <button onClick={() => setActivePage('notifications')} className="relative">
+              <button onClick={() => handleNavigate('notifications')} className="relative">
                  <Bell size={22} className="text-slate-400" />
                  {unreadNotifications > 0 && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-rose-500 rounded-full"></span>}
               </button>
@@ -304,14 +326,16 @@ export default function App() {
 
         {/* --- MOBILE BOTTOM NAV --- */}
         <div className="md:hidden fixed bottom-0 left-0 right-0 bg-[#0F172A]/90 backdrop-blur-xl border-t border-white/10 px-6 py-2 pb-5 z-40 flex justify-between items-center">
-           <MobileTab icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => setActivePage('discover')} />
-           <MobileTab icon={Globe} label="Social" active={activePage === 'social'} onClick={() => setActivePage('social')} />
-           <MobileTab icon={Brain} label="Coach" active={activePage === 'coach'} onClick={() => setActivePage('coach')} />
-           <MobileTab icon={MessageCircle} label="Chats" active={activePage === 'messages'} onClick={() => setActivePage('messages')} badge={unreadMessages || null} />
-           <MobileTab icon={Gift} label="Earn" active={activePage === 'referral'} onClick={() => setActivePage('referral')} />
+           <MobileTab icon={Heart} label="Discover" active={activePage === 'discover'} onClick={() => handleNavigate('discover')} />
+           <MobileTab icon={Globe} label="Social" active={activePage === 'social'} onClick={() => handleNavigate('social')} />
+           <MobileTab icon={Brain} label="Coach" active={activePage === 'coach'} onClick={() => handleNavigate('coach')} />
+           <MobileTab icon={MessageCircle} label="Chats" active={activePage === 'messages'} onClick={() => handleNavigate('messages')} badge={unreadMessages || null} />
+           <MobileTab icon={Gift} label="Earn" active={activePage === 'referral'} onClick={() => handleNavigate('referral')} />
         </div>
       </div>
 
     </div>
   );
 }
+
+export default App;

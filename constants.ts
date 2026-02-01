@@ -1,6 +1,4 @@
 
-
-
 import { User, Post, ChatSession, CoachScenario, Fetcher, Log, Plan, Notification, ReferralStat, ReferralTier, SaaSMetrics, FunnelStage } from './types';
 
 export const SYSTEM_PROMPTS = {
@@ -37,7 +35,7 @@ export const CURRENT_USER: User = {
   gender: 'Male',
   city: 'Mumbai',
   bio: 'Software engineer by day, guitarist by night. Looking for someone to share chai with.',
-  role: 'user',
+  role: 'admin', // Default to Admin so you can see the System Architect page initially
   plan: 'Pro',
   avatar: 'https://images.unsplash.com/photo-1506794778202-cad84cf45f1d?w=200&h=200&fit=crop',
   photos: [],
@@ -295,4 +293,20 @@ export const FUNNEL_DATA: FunnelStage[] = [
    { name: 'Signups', value: 2500, fill: '#83a6ed' },
    { name: 'Trial Started', value: 1240, fill: '#8dd1e1' },
    { name: 'Converted to Paid', value: 230, fill: '#82ca9d' },
+];
+
+// --- NEW DATA FOR ADMIN ANALYTICS ---
+export const REVENUE_COMPARISON_DATA = [
+  { month: 'Jan', year2024: 3000, year2025: 4200 },
+  { month: 'Feb', year2024: 3200, year2025: 4500 },
+  { month: 'Mar', year2024: 3500, year2025: 5100 },
+  { month: 'Apr', year2024: 3800, year2025: 5600 },
+  { month: 'May', year2024: 4100, year2025: 6200 },
+  { month: 'Jun', year2024: 4400, year2025: 7000 },
+  { month: 'Jul', year2024: 4800, year2025: 7500 },
+  { month: 'Aug', year2024: 5100, year2025: 8100 },
+  { month: 'Sep', year2024: 5400, year2025: 8600 },
+  { month: 'Oct', year2024: 5800, year2025: 9200 },
+  { month: 'Nov', year2024: 6500, year2025: 10500 },
+  { month: 'Dec', year2024: 7200, year2025: 12000 },
 ];
